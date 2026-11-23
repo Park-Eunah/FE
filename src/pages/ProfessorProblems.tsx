@@ -3,18 +3,11 @@ import { ProfessorLayout } from "../components/layout/ProfessorSidebar";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, Check, Clock3, Flag, Plus, Search, X } from "lucide-react";
-
-type Assignment = { id: number; title: string; due: string; submitted: number; total: number; flags: number; status: "공개" | "초안" };
-const initialAssignments: Assignment[] = [
-  { id: 1, title: "두 수의 합", due: "5월 18일 · 마감", submitted: 48, total: 60, flags: 4, status: "공개" },
-  { id: 2, title: "괄호 문자열 검사", due: "5월 28일", submitted: 43, total: 60, flags: 3, status: "공개" },
-  { id: 3, title: "최단 경로 찾기", due: "5월 31일", submitted: 38, total: 60, flags: 2, status: "공개" },
-  { id: 4, title: "우선순위 큐 구현", due: "6월 4일", submitted: 33, total: 60, flags: 0, status: "초안" },
-];
+import { readProfessorAssignments } from "./professorAssignments";
 
 export function ProfessorProblems() {
   const navigate = useNavigate();
-  const [assignments, setAssignments] = useState(initialAssignments);
+  const [assignments, setAssignments] = useState(readProfessorAssignments);
   const [query, setQuery] = useState("");
   const [showNew, setShowNew] = useState(false);
   const [newTitle, setNewTitle] = useState("");

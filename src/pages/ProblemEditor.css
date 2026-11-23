@@ -163,6 +163,69 @@
   gap: 18px;
 }
 
+.editor-left-column {
+  display: grid;
+  min-width: 0;
+  gap: 15px;
+}
+
+.testcase-card {
+  padding: 20px clamp(16px, 3vw, 23px);
+}
+
+.testcase-header,
+.testcase-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.testcase-card .testcase-header h2,
+.testcase-card .testcase-options label,
+.testcase-options .editor-input {
+  margin: 0;
+}
+
+.testcase-options .editor-input {
+  width: auto;
+  margin-left: 8px;
+}
+
+.testcase-add {
+  gap: 6px;
+}
+
+.testcase-empty {
+  margin: 12px 0 0;
+  color: #718099;
+  font-size: 14px;
+}
+
+.testcase-fields {
+  min-width: 0;
+  margin: 14px 0 0;
+  padding: 12px;
+  border: 1px solid #dfe6f0;
+  border-radius: 8px;
+}
+
+.testcase-fields legend {
+  padding: 0 5px;
+  color: #293951;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.testcase-options {
+  margin-bottom: 12px;
+}
+
+.testcase-value {
+  font-family: var(--font-mono, monospace);
+}
+
 .editor-card {
   border: 1px solid #e0e6f0;
   border-radius: 13px;

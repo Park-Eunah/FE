@@ -1,36 +1,51 @@
 import styles from "./ProfessorClasses.css?inline";
 import { ProfessorLayout } from "../components/layout/ProfessorSidebar";
+import { Tabs } from "../components/ui/Tabs";
+import { readProfessorAssignments } from "./professorAssignments";
+import { readProfessorClasses, saveProfessorClasses } from "./professorClassData";
 import { useState } from "react";
 import { ArrowLeft, Bell, BookOpen, Check, ChevronRight, Code2, Flag, Plus, RotateCcw, Search, X } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
-type ClassInfo = { title: string; term: string; count: number; code: string; open: boolean };
-const initialClasses: ClassInfo[] = [
-  { title: "자료구조", term: "2025년 봄학기", count: 60, code: "DS-7K92-QX", open: true },
-  { title: "알고리즘", term: "2025년 봄학기", count: 52, code: "AL-4P18-MN", open: true },
-  { title: "Python 프로그래밍", term: "2024년 가을학기", count: 48, code: "PY-9C31-LK", open: false },
-];
+const studentNames = ["김민준", "최준서", "조채원", "임도윤", "박수빈", "강서현", "장예린", "이건우", "정다은", "한유진"];
+const departments = ["컴퓨터공학과", "소프트웨어학과", "인공지능학과", "정보통신공학과"];
 
 export function ProfessorClasses() {
-  const [searchParams] = useSearchParams();
-  const [classes, setClasses] = useState(initialClasses);
-  const initialSelection = Number(searchParams.get("class"));
-  const [selected, setSelected] = useState<number | null>(searchParams.has("class") && Number.isInteger(initialSelection) && initialSelection >= 0 && initialSelection < initialClasses.length ? initialSelection : null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [classes, setClasses] = useState(readProfessorClasses);
+  const courseId = searchParams.get("course");
+  const legacyIndex = Number(searchParams.get("class") ?? -1);
+  const selected = courseId ? classes.findIndex((course) => course.id === courseId) : legacyIndex;
+  const detailTab = searchParams.get("tab") === "students" ? "students" : "assignments";
   const [query, setQuery] = useState("");
   const [toast, setToast] = useState("");
   const [showNew, setShowNew] = useState(false);
   const [newName, setNewName] = useState("");
   const [newTerm, setNewTerm] = useState("2026년 2학기");
-  const current = selected === null ? null : classes[selected];
+  const current = classes[selected];
+  const [allAssignments] = useState(readProfessorAssignments);
+  const assignments = allAssignments.filter((item) => item.classId === current?.id);
   const notify = (text: string) => { setToast(text); window.setTimeout(() => setToast(""), 2400); };
-  const toggleOpen = () => { if (selected !== null) setClasses((items) => items.map((item, i) => i === selected ? { ...item, open: !item.open } : item)); };
+  const updateClasses = (nextClasses: typeof classes) => {
+    try {
+      saveProfessorClasses(nextClasses);
+    } catch {
+      notify("수업을 저장하지 못했어요. 브라우저 저장 공간을 확인해주세요.");
+      return false;
+    }
+    setClasses(nextClasses);
+    return true;
+  };
+  const toggleOpen = () => {
+    if (current) updateClasses(classes.map((item, i) => i === selected ? { ...item, open: !item.open } : item));
+  };
   const copyCode = async () => {
     if (!current) return;
     try { await navigator.clipboard.writeText(current.code); notify("수업 코드를 복사했어요."); }
     catch { notify(`수업 코드: ${current.code}`); }
   };
   const regenerate = () => {
-    if (!current || selected === null) return;
+    if (!current) return;
     const code = `${current.code.slice(0, 2)}-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${Math.random().toString(36).slice(2, 4).toUpperCase()}`;
     setClasses((items) => items.map((item, i) => i === selected ? { ...item, code } : item));
     notify("새 참여 코드를 발급했어요.");
@@ -38,8 +53,9 @@ export function ProfessorClasses() {
   const createClass = () => {
     const title = newName.trim();
     if (!title) return;
-    const next = { title, term: newTerm, count: 0, code: `CL-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${Math.random().toString(36).slice(2, 4).toUpperCase()}`, open: true };
-    setClasses((items) => [...items, next]); setSelected(null); setNewName(""); setNewTerm("2026년 2학기"); setShowNew(false); notify("새 수업을 만들었어요.");
+    const next = { id: `local-${classes.length}`, title, term: newTerm, count: 0, code: `CL-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${Math.random().toString(36).slice(2, 4).toUpperCase()}`, open: true };
+    if (!updateClasses([...classes, next])) return;
+    setNewName(""); setNewTerm("2026년 2학기"); setShowNew(false); notify("새 수업을 만들었어요.");
   };
   const filteredClasses = classes.map((item, index) => ({ item, index })).filter(({ item }) => item.title.toLowerCase().includes(query.toLowerCase()) || item.code.toLowerCase().includes(query.toLowerCase()));
 
@@ -48,17 +64,73 @@ export function ProfessorClasses() {
     <div className="prof-main">
       <header className="prof-topbar"><div className="global-search"><Search size={19} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="문제, 학생 또는 제출 ID 검색" aria-label="수업 검색" /></div><button className="notification" aria-label="알림" onClick={() => notify("새 알림이 없습니다.")}><Bell size={22} /><i /></button><div className="profile"><b>박서연 교수</b><small>컴퓨터공학과</small></div></header>
       <main className="prof-content" id="classes">
-        <div className="page-title-row"><div><p className="page-eyebrow">PROFESSOR · CLASSES</p><h1>{current ? current.title : "수업 관리"}</h1><p className="page-subtitle">{current ? `${current.term} 수업 정보와 수강생을 관리하세요.` : "내 수업을 선택해 상세 정보와 수강생을 확인하세요."}</p></div>{current ? <button className="secondary-button" onClick={() => setSelected(null)}><ArrowLeft size={16} /> 내 수업 목록</button> : <button className="primary-button" onClick={() => setShowNew(true)}><Plus size={19} /> 새 수업 만들기</button>}</div>
+        <div className="page-title-row"><div><p className="page-eyebrow">PROFESSOR · CLASSES</p><h1>{current ? current.title : "수업 관리"}</h1><p className="page-subtitle">{current ? `${current.term} 수업 정보와 과제·수강생을 확인하세요.` : "내 수업을 선택해 상세 정보와 수강생을 확인하세요."}</p></div>{current ? <Link className="secondary-button no-underline" to="/classes"><ArrowLeft size={16} /> 내 수업 목록</Link> : <button className="primary-button" onClick={() => setShowNew(true)}><Plus size={19} /> 새 수업 만들기</button>}</div>
         {!current ? <section className="classes-card class-list-full"><div className="card-heading"><div><h2>내 수업</h2><p>관리할 수업을 선택하면 상세 정보로 이동해요.</p></div><span className="count-pill">{classes.length}개</span></div>
           <div className="class-table-wrap"><table className="class-table"><thead><tr><th>수업</th><th>학기</th><th>수강생</th><th>수업 코드</th><th>신규 참여</th><th aria-label="상세 보기" /></tr></thead><tbody>
-            {filteredClasses.map(({ item, index }) => <tr key={`${item.title}-${index}`} onClick={() => setSelected(index)}><td><b>{item.title}</b></td><td>{item.term}</td><td><b>{item.count}명</b></td><td className="table-code">{item.code}</td><td><span className={`status-pill ${item.open ? "is-open" : "is-closed"}`}>{item.open ? "열림" : "닫힘"}</span></td><td><ChevronRight size={17} /></td></tr>)}
+            {filteredClasses.map(({ item, index }) => <tr key={`${item.title}-${index}`} onClick={() => setSearchParams({ course: item.id })}><td><b>{item.title}</b></td><td>{item.term}</td><td><b>{item.count}명</b></td><td className="table-code">{item.code}</td><td><span className={`status-pill ${item.open ? "is-open" : "is-closed"}`}>{item.open ? "열림" : "닫힘"}</span></td><td><ChevronRight size={17} /></td></tr>)}
             {filteredClasses.length === 0 && <tr><td className="empty-row" colSpan={6}>검색 결과가 없어요.</td></tr>}
           </tbody></table></div>
         </section> : <div className="class-detail-view">
           <section className="class-overview-card"><header><span className="detail-icon"><Code2 size={21} /></span><div><h2>수업 상세 정보</h2><p>{current.term} · {current.count}명 참여 중</p></div><span className={`open-chip ${current.open ? "" : "closed"}`}>{current.open ? "참여 열림" : "참여 닫힘"}</span></header>
             <div className="overview-body"><div className="overview-code"><small>학생 참여 코드</small><strong>{current.code}</strong><p>학생에게 이 코드를 전달해 수업에 참여하도록 안내하세요.</p></div><div className="overview-controls"><div className="overview-actions"><button className="primary-button" onClick={copyCode}><Code2 size={17} /> 코드 복사</button><button className="secondary-button" onClick={regenerate}><RotateCcw size={18} /> 코드 재발급</button></div><div className="setting-row"><div><b>신규 참여 허용</b><small>{current.open ? "새로운 학생은 코드로 참여할 수 있어요." : "현재 신규 학생의 참여가 닫혀 있어요."}</small></div><button role="switch" aria-checked={current.open} className={`switch ${current.open ? "on" : ""}`} onClick={toggleOpen} aria-label="신규 참여 허용 전환"><span /></button></div><div className="warning-note"><Flag size={15} /><span>재발급하면 이전 코드는 참여할 수 없어요. 이미 참여한 학생은 그대로 유지돼요.</span></div></div></div>
           </section>
-          <section className="roster-card"><header><div><h2>수강생 목록</h2><p>현재 이 수업에 참여하고 있는 학생입니다.</p></div><span className="count-pill">총 {current.count}명</span></header><div className="roster-scroll"><table><thead><tr><th>번호</th><th>학과</th><th>학번</th><th>이름</th></tr></thead><tbody>{Array.from({ length: current.count }, (_, i) => { const names = ["김민준", "최준서", "조채원", "임도윤", "박수빈", "강서현", "장예린", "이건우", "정다은", "한유진"]; const departments = ["컴퓨터공학과", "소프트웨어학과", "인공지능학과", "정보통신공학과"]; const name = names[i % names.length]; return <tr key={i}><td>{i + 1}</td><td>{departments[i % departments.length]}</td><td>20251{String(i + 1).padStart(3, "0")}</td><td><span className="roster-student"><span>{name.slice(0, 1)}</span><b>{name}</b></span></td></tr>; })}</tbody></table></div></section>
+          <section className="roster-card">
+            <div className="px-4 pt-2 sm:px-[22px]">
+              <Tabs
+                items={[{ value: "assignments", label: "과제", count: assignments.length }, { value: "students", label: "수강생", count: current.count }]}
+                active={detailTab}
+                onChange={(tab) => setSearchParams({ course: current.id, tab }, { replace: true })}
+                variant="line"
+              />
+            </div>
+            {detailTab === "assignments" ? (
+              <div role="tabpanel" aria-label="과제">
+                <div className="flex justify-end px-4 py-3 sm:px-[22px]">
+                  <Link className="primary-button no-underline" to={`/problems/new?course=${encodeURIComponent(current.id)}`}>
+                    <Plus size={18} aria-hidden /> 과제 등록
+                  </Link>
+                </div>
+                <div className="roster-scroll">
+                  <table aria-label={`${current.title} 과제 목록`}>
+                    <thead><tr><th>과제</th><th>마감</th><th>제출 수</th><th>상태</th></tr></thead>
+                    <tbody>
+                      {assignments.map((assignment) => (
+                        <tr key={assignment.id}>
+                          <td><b>{assignment.title}</b></td>
+                          <td>{assignment.due}</td>
+                          <td>{assignment.submitted} / {assignment.total}</td>
+                          <td><span className={`status-pill ${assignment.status === "공개" ? "is-open" : "is-closed"}`}>{assignment.status}</span></td>
+                        </tr>
+                      ))}
+                      {assignments.length === 0 && <tr><td colSpan={4} className="empty-row">등록된 과제가 없어요.</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div role="tabpanel" aria-label="수강생" className="roster-scroll">
+                <table aria-label={`${current.title} 수강생 목록`}>
+                  <thead><tr><th>번호</th><th>학과</th><th>학번</th><th>이름</th></tr></thead>
+                  <tbody>
+                    {Array.from({ length: current.count }, (_, index) => {
+                      const rosterIndex = selected * 63 + index;
+                      const name = studentNames[rosterIndex % studentNames.length];
+                      const studentId = `20251${String(rosterIndex + 1).padStart(3, "0")}`;
+                      return (
+                        <tr key={studentId}>
+                          <td>{index + 1}</td>
+                          <td>{departments[rosterIndex % departments.length]}</td>
+                          <td>{studentId}</td>
+                          <td><span className="roster-student"><span>{name.slice(0, 1)}</span><b>{name}</b></span></td>
+                        </tr>
+                      );
+                    })}
+                    {current.count === 0 && <tr><td colSpan={4} className="empty-row">등록된 수강생이 없어요.</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
         </div>}
       </main>
     </div>
