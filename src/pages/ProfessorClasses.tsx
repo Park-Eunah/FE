@@ -1,7 +1,8 @@
 import styles from "./ProfessorClasses.css?inline";
 import { ProfessorLayout } from "../components/layout/ProfessorSidebar";
 import { Tabs } from "../components/ui/Tabs";
-import { readProfessorAssignments } from "./professorAssignments";
+import { ClassAssignmentDetails } from "./ClassAssignmentDetails";
+import { getAssignmentStatus, readProfessorAssignments, useAssignmentClock } from "./professorAssignments";
 import { readProfessorClasses, saveProfessorClasses } from "./professorClassData";
 import { useState } from "react";
 import { ArrowLeft, Bell, BookOpen, Check, ChevronRight, Code2, Flag, Plus, RotateCcw, Search, X } from "lucide-react";
@@ -24,7 +25,11 @@ export function ProfessorClasses() {
   const [newTerm, setNewTerm] = useState("2026년 2학기");
   const current = classes[selected];
   const [allAssignments] = useState(readProfessorAssignments);
-  const assignments = allAssignments.filter((item) => item.classId === current?.id);
+  const now = useAssignmentClock(allAssignments);
+  const assignments = allAssignments
+    .filter((item) => item.classId === current?.id)
+    .map((item) => ({ ...item, status: getAssignmentStatus(item, now) }));
+  const assignmentKey = searchParams.get("assignment");
   const notify = (text: string) => { setToast(text); window.setTimeout(() => setToast(""), 2400); };
   const updateClasses = (nextClasses: typeof classes) => {
     try {
@@ -85,6 +90,12 @@ export function ProfessorClasses() {
             </div>
             {detailTab === "assignments" ? (
               <div role="tabpanel" aria-label="과제">
+                {assignmentKey ? (
+                  <ClassAssignmentDetails
+                    assignment={assignments.find((item) => item.editKey === assignmentKey)}
+                    listPath={`/classes?course=${encodeURIComponent(current.id)}`}
+                  />
+                ) : <>
                 <div className="flex justify-end px-4 py-3 sm:px-[22px]">
                   <Link className="primary-button no-underline" to={`/problems/new?course=${encodeURIComponent(current.id)}`}>
                     <Plus size={18} aria-hidden /> 과제 등록
@@ -92,20 +103,38 @@ export function ProfessorClasses() {
                 </div>
                 <div className="roster-scroll">
                   <table aria-label={`${current.title} 과제 목록`}>
-                    <thead><tr><th>과제</th><th>마감</th><th>제출 수</th><th>상태</th></tr></thead>
+                    <thead><tr><th>과제</th><th>마감</th><th>제출 수</th><th>상태</th><th aria-label="상세 보기" /></tr></thead>
                     <tbody>
                       {assignments.map((assignment) => (
-                        <tr key={assignment.id}>
+                        <tr
+                          key={assignment.id}
+                          className={assignment.editKey ? "cursor-pointer hover:bg-[#eaf2ff] focus-within:bg-[#eaf2ff]" : undefined}
+                          onClick={() => {
+                            if (assignment.editKey) setSearchParams({ course: current.id, assignment: assignment.editKey });
+                          }}
+                        >
                           <td><b>{assignment.title}</b></td>
                           <td>{assignment.due}</td>
                           <td>{assignment.submitted} / {assignment.total}</td>
                           <td><span className={`status-pill ${assignment.status === "공개" ? "is-open" : "is-closed"}`}>{assignment.status}</span></td>
+                          <td className="w-7 text-fg-secondary">
+                            {assignment.editKey && (
+                              <button
+                                type="button"
+                                className="grid size-8 cursor-pointer place-items-center rounded-md border-0 bg-transparent p-0 text-inherit focus-visible:outline-2 focus-visible:outline-blue-600"
+                                aria-label={`${assignment.title} 상세 보기`}
+                              >
+                                <ChevronRight size={17} aria-hidden />
+                              </button>
+                            )}
+                          </td>
                         </tr>
                       ))}
-                      {assignments.length === 0 && <tr><td colSpan={4} className="empty-row">등록된 과제가 없어요.</td></tr>}
+                      {assignments.length === 0 && <tr><td colSpan={5} className="empty-row">등록된 과제가 없어요.</td></tr>}
                     </tbody>
                   </table>
                 </div>
+                </>}
               </div>
             ) : (
               <div role="tabpanel" aria-label="수강생" className="roster-scroll">

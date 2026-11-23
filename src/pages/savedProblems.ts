@@ -5,7 +5,17 @@ export type TestCase = {
   visibility: "public" | "private";
 };
 
-type SavedProblem = {
+export type ProblemStatus = "공개" | "초안" | "공개 예약";
+
+export type InspectionPolicy = {
+  mode: "deny" | "allow";
+  deniedTags: string[];
+  allowedTags: string[];
+  requiredTags: string[];
+};
+
+export type SavedProblem = {
+  sampleId?: number;
   classId?: string;
   title: string;
   description: string;
@@ -16,8 +26,10 @@ type SavedProblem = {
   deadline: string;
   resubmission: boolean;
   trackLeave: boolean;
-  status: "공개" | "초안";
+  status: ProblemStatus;
+  publishAt?: string;
   testCases: TestCase[];
+  inspectionPolicy?: InspectionPolicy;
 };
 
 const storageKey = "autota.professor.problems";
@@ -26,7 +38,13 @@ export function readSavedProblems(): SavedProblem[] {
   return JSON.parse(window.localStorage.getItem(storageKey) ?? "[]");
 }
 
-export function saveProblem(problem: SavedProblem) {
+export function saveProblem(problem: SavedProblem, existingIndex?: number) {
   const problems = readSavedProblems();
-  window.localStorage.setItem(storageKey, JSON.stringify([...problems, problem]));
+  if (existingIndex === undefined) {
+    problems.push(problem);
+  } else {
+    if (!problems[existingIndex]) throw new Error("Problem not found");
+    problems[existingIndex] = problem;
+  }
+  window.localStorage.setItem(storageKey, JSON.stringify(problems));
 }

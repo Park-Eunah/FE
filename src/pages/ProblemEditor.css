@@ -156,19 +156,6 @@
   background: #f7f9fc;
 }
 
-.editor-columns {
-  display: grid;
-  grid-template-columns: minmax(0,1.65fr) minmax(400px,.95fr);
-  align-items: start;
-  gap: 18px;
-}
-
-.editor-left-column {
-  display: grid;
-  min-width: 0;
-  gap: 15px;
-}
-
 .testcase-card {
   padding: 20px clamp(16px, 3vw, 23px);
 }
@@ -191,10 +178,6 @@
 .testcase-options .editor-input {
   width: auto;
   margin-left: 8px;
-}
-
-.testcase-add {
-  gap: 6px;
 }
 
 .testcase-empty {
@@ -220,10 +203,6 @@
 
 .testcase-options {
   margin-bottom: 12px;
-}
-
-.testcase-value {
-  font-family: var(--font-mono, monospace);
 }
 
 .editor-card {
@@ -252,6 +231,26 @@
   font-weight: 700;
 }
 
+.editor-card .publish-immediately {
+  @apply m-0 inline-flex items-center gap-2 whitespace-nowrap;
+}
+
+.editor-card .inspection-option {
+  @apply m-0 flex cursor-pointer items-center gap-3 rounded-xl border border-solid p-3;
+}
+
+.inspection-option input {
+  @apply m-0 shrink-0 accent-blue-600;
+}
+
+.editor-input.inspection-tag-input {
+  @apply m-0 min-w-36 flex-1;
+}
+
+.editor-input.inspection-tag-type {
+  @apply m-0 w-auto;
+}
+
 .editor-input,.editor-textarea {
   box-sizing: border-box;
   width: 100%;
@@ -262,6 +261,10 @@
   color: #24344f;
   outline: 0;
   @apply [font:14px/1.7_var(--font-sans)];
+}
+
+.editor-textarea.testcase-value {
+  @apply font-mono;
 }
 
 .editor-input:focus,.editor-textarea:focus {
@@ -291,11 +294,6 @@
 
 .format-area {
   height: 93px;
-}
-
-.editor-right-column {
-  display: grid;
-  gap: 15px;
 }
 
 .execution-card,.policy-card {
@@ -384,7 +382,6 @@
 
 .policy-row {
   min-height: 60px;
-  border-bottom: 1px solid #e4e9f1;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -503,17 +500,6 @@
   cursor: pointer;
 }
 
-@media (max-width:1180px) {
-  .editor-columns {
-    grid-template-columns: 1fr;
-  }
-
-  .editor-right-column {
-    grid-template-columns: 1fr 1fr;
-    align-items: start;
-  }
-}
-
 @media (max-width:800px) {
   .editor-topbar {
     height: 59px;
@@ -570,16 +556,8 @@
     white-space: nowrap;
   }
 
-  .editor-columns {
-    gap: 13px;
-  }
-
   .basic-card {
     padding: 19px 16px 24px;
-  }
-
-  .editor-right-column {
-    grid-template-columns: 1fr;
   }
 
   .execution-card,.policy-card {

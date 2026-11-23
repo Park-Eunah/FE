@@ -23,6 +23,7 @@ createRoot(document.getElementById("root")!).render(
         <Route path="/classes" element={<ProfessorClasses />} />
         <Route path="/problems" element={<ProfessorProblems />} />
         <Route path="/problems/new" element={<ProblemEditor />} />
+        <Route path="/problems/:problemKey/edit" element={<ProblemEditor />} />
         <Route path="/review" element={<GradingReview />} />
         <Route path="/scores" element={<ScoreRelease />} />
         <Route path="/components" element={<ComponentGallery />} />
