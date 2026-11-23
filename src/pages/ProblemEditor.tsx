@@ -39,7 +39,7 @@ function ProblemEditorForm({ problemKey, editStep, courseId }: { problemKey?: st
   const [outputFormat, setOutputFormat] = useState(original?.outputFormat ?? "");
   const [timeLimit, setTimeLimit] = useState(original?.timeLimit ?? "1");
   const [memoryLimit, setMemoryLimit] = useState(original?.memoryLimit ?? "128");
-  const [deadline, setDeadline] = useState(original?.deadline ?? "2025-05-31T23:59");
+  const [deadline, setDeadline] = useState(original?.deadline ?? "");
   const [resubmission, setResubmission] = useState(original?.resubmission ?? true);
   const [trackLeave, setTrackLeave] = useState(original?.trackLeave ?? false);
   const [inspectionPolicy, setInspectionPolicy] = useState<InspectionPolicy>(

@@ -6,6 +6,18 @@ const initialClasses: ClassInfo[] = [
   { id: "python", title: "Python 프로그래밍", term: "2024년 가을학기", count: 48, code: "PY-9C31-LK", open: false },
 ];
 const storageKey = "autota.professor.classes";
+const studentNames = ["김민준", "최준서", "조채원", "임도윤", "박수빈", "강서현", "장예린", "이건우", "정다은", "한유진"];
+const departments = ["컴퓨터공학과", "소프트웨어학과", "인공지능학과", "정보통신공학과"];
+
+export function getMockClassStudent(classId: string, index: number) {
+  const classIndex = Math.max(0, initialClasses.findIndex((course) => course.id === classId));
+  const rosterIndex = classIndex * 63 + index;
+  return {
+    name: studentNames[rosterIndex % studentNames.length],
+    department: departments[rosterIndex % departments.length],
+    studentId: `20251${String(rosterIndex + 1).padStart(3, "0")}`,
+  };
+}
 
 export function readProfessorClasses(): ClassInfo[] {
   try {

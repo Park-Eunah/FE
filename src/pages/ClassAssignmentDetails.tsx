@@ -1,6 +1,7 @@
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
-import { readEditableProblem, type Assignment } from "./professorAssignments";
+import { readEditableProblem, type AssignmentView } from "./professorAssignments";
+import { ClassAssignmentSubmissions } from "./ClassAssignmentSubmissions";
 
 const dateFormatter = new Intl.DateTimeFormat("ko-KR", { dateStyle: "medium", timeStyle: "short" });
 
@@ -9,7 +10,7 @@ function formatDate(value?: string) {
   return Number.isFinite(time) ? dateFormatter.format(time) : "미설정";
 }
 
-export function ClassAssignmentDetails({ assignment, listPath }: { assignment?: Assignment; listPath: string }) {
+export function ClassAssignmentDetails({ assignment, listPath }: { assignment?: AssignmentView; listPath: string }) {
   let problem;
   try {
     problem = assignment?.editKey ? readEditableProblem(assignment.editKey)?.problem : undefined;
@@ -54,9 +55,10 @@ export function ClassAssignmentDetails({ assignment, listPath }: { assignment?: 
                 { label: "제출 마감", value: formatDate(problem.deadline) },
                 { label: "재제출", value: problem.resubmission ? "허용" : "허용 안 함" },
                 { label: "화면 이탈 기록", value: problem.trackLeave ? "사용" : "사용 안 함" },
-                { label: "제출 현황", value: `${assignment.submitted} / ${assignment.total}명` },
-                { label: "공개 상태", value: assignment.status },
-                ...(problem.publishAt ? [{ label: "설정된 공개 일시", value: formatDate(problem.publishAt) }] : []),
+                { label: "문제 상태", value: assignment.status },
+                ...(problem.status === "초안"
+                  ? [{ label: "공개 설정", value: "초안 저장됨" }]
+                  : problem.publishAt ? [{ label: "설정된 공개 일시", value: formatDate(problem.publishAt) }] : []),
               ].map(({ label, value }) => (
                 <div key={label}>
                   <dt className="text-sm text-fg-secondary">{label}</dt>
@@ -84,6 +86,7 @@ export function ClassAssignmentDetails({ assignment, listPath }: { assignment?: 
               </ul>
             ) : <p className="m-0 text-fg-secondary">등록된 테스트케이스가 없어요.</p>}
           </section>
+          {assignment.status !== "예약" && <ClassAssignmentSubmissions key={assignment.editKey} assignment={assignment} />}
         </>
       )}
     </div>

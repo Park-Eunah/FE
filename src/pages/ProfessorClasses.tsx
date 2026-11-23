@@ -3,15 +3,13 @@ import { ProfessorLayout } from "../components/layout/ProfessorSidebar";
 import { Tabs } from "../components/ui/Tabs";
 import { ClassAssignmentDetails } from "./ClassAssignmentDetails";
 import { getAssignmentStatus, readProfessorAssignments, useAssignmentClock } from "./professorAssignments";
-import { readProfessorClasses, saveProfessorClasses } from "./professorClassData";
+import { getMockClassStudent, readProfessorClasses, saveProfessorClasses } from "./professorClassData";
 import { useState } from "react";
 import { ArrowLeft, Bell, BookOpen, Check, ChevronRight, Code2, Flag, Plus, RotateCcw, Search, X } from "lucide-react";
-import { Link, useSearchParams } from "react-router-dom";
-
-const studentNames = ["김민준", "최준서", "조채원", "임도윤", "박수빈", "강서현", "장예린", "이건우", "정다은", "한유진"];
-const departments = ["컴퓨터공학과", "소프트웨어학과", "인공지능학과", "정보통신공학과"];
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 export function ProfessorClasses() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [classes, setClasses] = useState(readProfessorClasses);
   const courseId = searchParams.get("course");
@@ -110,19 +108,25 @@ export function ProfessorClasses() {
                           key={assignment.id}
                           className={assignment.editKey ? "cursor-pointer hover:bg-[#eaf2ff] focus-within:bg-[#eaf2ff]" : undefined}
                           onClick={() => {
-                            if (assignment.editKey) setSearchParams({ course: current.id, assignment: assignment.editKey });
+                            if (!assignment.editKey) return;
+                            const params = { course: current.id, assignment: assignment.editKey };
+                            if (assignment.status === "공개") {
+                              navigate(`/review?${new URLSearchParams(params)}`);
+                            } else {
+                              setSearchParams(params);
+                            }
                           }}
                         >
                           <td><b>{assignment.title}</b></td>
                           <td>{assignment.due}</td>
                           <td>{assignment.submitted} / {assignment.total}</td>
-                          <td><span className={`status-pill ${assignment.status === "공개" ? "is-open" : "is-closed"}`}>{assignment.status}</span></td>
+                          <td><span className={`status-pill ${assignment.status === "공개" ? "is-open" : assignment.status === "예약" ? "bg-info-bg text-info-text" : "is-closed"}`}>{assignment.status}</span></td>
                           <td className="w-7 text-fg-secondary">
                             {assignment.editKey && (
                               <button
                                 type="button"
                                 className="grid size-8 cursor-pointer place-items-center rounded-md border-0 bg-transparent p-0 text-inherit focus-visible:outline-2 focus-visible:outline-blue-600"
-                                aria-label={`${assignment.title} 상세 보기`}
+                                aria-label={`${assignment.title} ${assignment.status === "공개" ? "채점 검토" : "상세 보기"}`}
                               >
                                 <ChevronRight size={17} aria-hidden />
                               </button>
@@ -142,13 +146,11 @@ export function ProfessorClasses() {
                   <thead><tr><th>번호</th><th>학과</th><th>학번</th><th>이름</th></tr></thead>
                   <tbody>
                     {Array.from({ length: current.count }, (_, index) => {
-                      const rosterIndex = selected * 63 + index;
-                      const name = studentNames[rosterIndex % studentNames.length];
-                      const studentId = `20251${String(rosterIndex + 1).padStart(3, "0")}`;
+                      const { name, department, studentId } = getMockClassStudent(current.id, index);
                       return (
                         <tr key={studentId}>
                           <td>{index + 1}</td>
-                          <td>{departments[rosterIndex % departments.length]}</td>
+                          <td>{department}</td>
                           <td>{studentId}</td>
                           <td><span className="roster-student"><span>{name.slice(0, 1)}</span><b>{name}</b></span></td>
                         </tr>

@@ -2,18 +2,23 @@ import { useEffect, useState } from "react";
 import { readProfessorClasses } from "./professorClassData";
 import { readSavedProblems, type ProblemStatus, type SavedProblem } from "./savedProblems";
 
+export type AssignmentState = "예약" | "공개" | "종료";
+
 export type Assignment = {
   id: number;
   editKey?: string;
   classId?: string;
   title: string;
   due: string;
+  deadline?: string;
   submitted: number;
   total: number;
   flags: number;
   status: ProblemStatus;
   publishAt?: string;
 };
+
+export type AssignmentView = Omit<Assignment, "status"> & { status: AssignmentState };
 
 const initialAssignments: Assignment[] = [
   { id: 1, classId: "algorithms", title: "두 수의 합", due: "5월 18일 · 마감", submitted: 48, total: 52, flags: 4, status: "공개" },
@@ -51,7 +56,7 @@ export function readEditableProblem(key: string): { problem: SavedProblem; index
 }
 
 export function readProfessorAssignments(): Assignment[] {
-  const samples = initialAssignments.map((item) => ({ ...item, editKey: `sample-${item.id}` }));
+  const samples = initialAssignments.map((item) => ({ ...item, editKey: `sample-${item.id}`, deadline: sampleProblemDetails[item.id].deadline }));
   try {
     const classes = readProfessorClasses();
     const saved = readSavedProblems();
@@ -59,6 +64,7 @@ export function readProfessorAssignments(): Assignment[] {
       classId: problem.classId,
       title: problem.title,
       due: problem.deadline.replace("T", " ") || "마감일 미설정",
+      deadline: problem.deadline,
       status: problem.status,
       publishAt: problem.publishAt,
     });
@@ -82,25 +88,26 @@ export function readProfessorAssignments(): Assignment[] {
   }
 }
 
-export function getAssignmentStatus(assignment: Assignment, now: number): ProblemStatus {
-  if (assignment.status === "공개 예약" && assignment.publishAt && Date.parse(assignment.publishAt) <= now) {
-    return "공개";
-  }
-  return assignment.status;
+export function getAssignmentStatus(assignment: Assignment, now: number): AssignmentState {
+  const publishAt = Date.parse(assignment.publishAt ?? "");
+  if (assignment.status === "초안" || (assignment.status === "공개 예약" && !(publishAt <= now))) return "예약";
+  return Date.parse(assignment.deadline ?? "") <= now ? "종료" : "공개";
 }
 
 export function useAssignmentClock(assignments: Assignment[]) {
   const [now, setNow] = useState(Date.now);
-  const nextPublishAt = Math.min(...assignments
-    .filter((assignment) => getAssignmentStatus(assignment, now) === "공개 예약")
-    .map((assignment) => Date.parse(assignment.publishAt ?? ""))
-    .filter((time) => Number.isFinite(time) && time > now));
+  const nextChangeAt = assignments.reduce((next, assignment) => {
+    const status = getAssignmentStatus(assignment, now);
+    const date = status === "공개" ? assignment.deadline : assignment.status === "공개 예약" && status === "예약" ? assignment.publishAt : undefined;
+    const time = Date.parse(date ?? "");
+    return time > now ? Math.min(next, time) : next;
+  }, Infinity);
 
   useEffect(() => {
-    if (!Number.isFinite(nextPublishAt)) return;
-    const timeout = window.setTimeout(() => setNow(Date.now()), Math.min(Math.max(nextPublishAt - Date.now(), 0), 2_147_483_647));
+    if (!Number.isFinite(nextChangeAt)) return;
+    const timeout = window.setTimeout(() => setNow(Date.now()), Math.min(Math.max(nextChangeAt - Date.now(), 0), 2_147_483_647));
     return () => window.clearTimeout(timeout);
-  }, [nextPublishAt, now]);
+  }, [nextChangeAt, now]);
 
   return now;
 }
