@@ -10,14 +10,26 @@ export interface CardProps {
   icon?: ReactNode;
   padding?: "default" | "table";
   highlight?: boolean;
+  /** 카드 바깥 상자에 덧붙일 클래스 (예: 옆 카드와 높이를 맞출 때 "flex flex-col") */
+  className?: string;
   children: ReactNode;
 }
-export function Card({ title, subtitle, action, icon, padding = "default", highlight, children }: CardProps) {
+export function Card({
+  title,
+  subtitle,
+  action,
+  icon,
+  padding = "default",
+  highlight,
+  className,
+  children,
+}: CardProps) {
   const table = padding === "table";
   const box = [
     "rounded-2xl border shadow-sm",
     highlight ? "border-info-border bg-blue-25" : "border-border bg-surface",
     table ? "overflow-hidden p-0" : "p-[30px]",
+    className ?? "",
   ].join(" ");
   const head = [
     "mb-[22px] flex gap-4",
@@ -29,11 +41,21 @@ export function Card({ title, subtitle, action, icon, padding = "default", highl
       {(title || action) && (
         <div className={head}>
           {icon && (
-            <span className="grid size-14 flex-none place-items-center rounded-xl bg-blue-50 text-blue-600">{icon}</span>
+            <span className="grid size-14 flex-none place-items-center rounded-xl bg-blue-50 text-blue-600">
+              {icon}
+            </span>
           )}
           <div className={icon ? "flex-1" : undefined}>
-            {title && <h2 className="m-0 text-[22px] leading-[30px] font-medium">{title}</h2>}
-            {subtitle && <div className="mt-1.5 text-sm leading-5 text-fg-secondary">{subtitle}</div>}
+            {title && (
+              <h2 className="m-0 text-[22px] leading-[30px] font-medium">
+                {title}
+              </h2>
+            )}
+            {subtitle && (
+              <div className="mt-1.5 text-sm leading-5 text-fg-secondary">
+                {subtitle}
+              </div>
+            )}
           </div>
           {action}
         </div>

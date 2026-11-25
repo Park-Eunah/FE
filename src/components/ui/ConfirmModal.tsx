@@ -10,7 +10,7 @@ export function ModalPanel({ title, description, children, titleId, ...rest }:
       className="box-border w-[480px] max-w-[calc(100vw-32px)] rounded-modal bg-surface p-9 shadow-lg"
     >
       <h2 id={titleId} className="m-0 mb-2.5 text-[22px] leading-[30px] font-medium">{title}</h2>
-      <p className="m-0 mb-7 text-base leading-[26px] text-fg-secondary">{description}</p>
+      <p className="m-0 mb-7 text-base leading-[26px] break-keep whitespace-pre-line text-fg-secondary">{description}</p>
       <div className="flex justify-end gap-3">{children}</div>
     </div>
   );

@@ -8,11 +8,13 @@ export interface ListRowProps {
   subtitle?: string;
   trailing?: ReactNode;
   onClick?: () => void;
+  /** 목록에서 지금 보고 있는 줄 */
+  selected?: boolean;
 }
 
 const row = "flex items-center gap-5 border-b border-border bg-surface px-[30px] py-[22px] last:border-b-0";
 
-export function ListRow({ leading, title, subtitle, trailing, onClick }: ListRowProps) {
+export function ListRow({ leading, title, subtitle, trailing, onClick, selected }: ListRowProps) {
   const body = (
     <>
       {leading}
@@ -29,7 +31,7 @@ export function ListRow({ leading, title, subtitle, trailing, onClick }: ListRow
     </>
   );
   return onClick ? (
-    <div className={`${row} cursor-pointer hover:bg-[#F9FBFF]`} role="button" tabIndex={0} onClick={onClick} onKeyDown={(e) => e.key === "Enter" && onClick()}>{body}</div>
+    <div className={`${row} cursor-pointer hover:bg-[#F9FBFF]${selected ? " bg-blue-50 shadow-[inset_4px_0_0_var(--color-blue-600)]" : ""}`} role="button" tabIndex={0} aria-pressed={selected} onClick={onClick} onKeyDown={(e) => e.key === "Enter" && onClick()}>{body}</div>
   ) : (
     <div className={row}>{body}</div>
   );

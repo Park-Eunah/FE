@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 
 /* ============ CodeEditor ============ */
 export interface CodeEditorProps {
@@ -10,10 +10,21 @@ export interface CodeEditorProps {
   language?: string;
   readOnly?: boolean;
   minLines?: number;
+  /** 편집기 맨 아래 상태 줄 (예: "저장됨", "Spaces: 4 · UTF-8") */
+  footer?: ReactNode;
 }
-const LH = 31;   // 줄 높이 (px) — 줄 수에 따라 계산하는 값이라 style 로 전달
-const PAD = 20;  // 위아래 안쪽 여백 (px) — 위 py-5 와 같은 값
-export function CodeEditor({ value, onChange, flagLines = [], filename = "main.py", language = "Python 3.12", readOnly, minLines = 16 }: CodeEditorProps) {
+const LH = 31; // 줄 높이 (px) — 줄 수에 따라 계산하는 값이라 style 로 전달
+const PAD = 20; // 위아래 안쪽 여백 (px) — 위 py-5 와 같은 값
+export function CodeEditor({
+  value,
+  onChange,
+  flagLines = [],
+  filename = "main.py",
+  language = "Python 3.12",
+  readOnly,
+  minLines = 16,
+  footer,
+}: CodeEditorProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const lines = Math.max(value.split("\n").length, minLines);
   return (
@@ -25,11 +36,18 @@ export function CodeEditor({ value, onChange, flagLines = [], filename = "main.p
           <span className="size-3.5 rounded-full bg-[#4BBB77]" />
         </span>
         <span className="flex gap-2.5">
-          <span className="rounded-md border border-white/8 bg-code-chip px-3.5 py-[9px] text-sm leading-none font-medium text-[#CDD5E7]">{language}</span>
-          <span className="rounded-md border border-white/8 bg-code-chip px-3.5 py-[9px] text-sm leading-none font-medium text-[#CDD5E7]">{filename}</span>
+          <span className="rounded-md border border-white/8 bg-code-chip px-3.5 py-[9px] text-sm leading-none font-medium text-[#CDD5E7]">
+            {language}
+          </span>
+          <span className="rounded-md border border-white/8 bg-code-chip px-3.5 py-[9px] text-sm leading-none font-medium text-[#CDD5E7]">
+            {filename}
+          </span>
         </span>
       </div>
-      <div className="relative box-content flex py-5 font-mono text-[19px] leading-[31px] font-normal" style={{ height: lines * LH }}>
+      <div
+        className="relative box-content flex py-5 font-mono text-[19px] leading-[31px] font-normal"
+        style={{ height: lines * LH }}
+      >
         {flagLines.map((n) => (
           <div
             key={n}
@@ -38,16 +56,28 @@ export function CodeEditor({ value, onChange, flagLines = [], filename = "main.p
             style={{ top: PAD + (n - 1) * LH, height: LH }}
           />
         ))}
-        <div aria-hidden className="relative pr-[22px] pl-7 text-right text-code-no">
-          {Array.from({ length: lines }, (_, i) => <div key={i} style={{ height: LH }}>{i + 1}</div>)}
+        <div
+          aria-hidden
+          className="relative pr-[22px] pl-7 text-right text-code-no"
+        >
+          {Array.from({ length: lines }, (_, i) => (
+            <div key={i} style={{ height: LH }}>
+              {i + 1}
+            </div>
+          ))}
         </div>
         <textarea
-          ref={ref} value={value} readOnly={readOnly} spellCheck={false} aria-label="Python 코드 입력"
+          ref={ref}
+          value={value}
+          readOnly={readOnly}
+          spellCheck={false}
+          aria-label="Python 코드 입력"
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => {
             if (e.key !== "Tab") return;
             e.preventDefault();
-            const t = e.currentTarget, s = t.selectionStart;
+            const t = e.currentTarget,
+              s = t.selectionStart;
             onChange(value.slice(0, s) + "    " + value.slice(t.selectionEnd));
             requestAnimationFrame(() => t.setSelectionRange(s + 4, s + 4));
           }}
@@ -55,6 +85,11 @@ export function CodeEditor({ value, onChange, flagLines = [], filename = "main.p
           style={{ lineHeight: `${LH}px` }}
         />
       </div>
+      {footer && (
+        <div className="flex items-center justify-between border-t border-white/6 px-7 py-4 text-xs leading-4 text-code-no">
+          {footer}
+        </div>
+      )}
     </div>
   );
 }

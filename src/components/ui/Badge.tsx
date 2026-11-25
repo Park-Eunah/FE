@@ -1,7 +1,14 @@
 import type { ReactNode } from "react";
 
 /* ============ Badge ============ */
-export type Tone = "success" | "danger" | "flag" | "amber" | "neutral" | "info" | "purple";
+export type Tone =
+  | "success"
+  | "danger"
+  | "flag"
+  | "amber"
+  | "neutral"
+  | "info"
+  | "purple";
 export interface BadgeProps {
   tone?: Tone;
   large?: boolean;
@@ -23,15 +30,26 @@ const TONE: Record<Tone, string> = {
   purple: "bg-purple-bg text-purple-fg",
 };
 
-export function Badge({ tone = "neutral", large, square, icon, dot, children }: BadgeProps) {
+export function Badge({
+  tone = "neutral",
+  large,
+  square,
+  icon,
+  dot,
+  children,
+}: BadgeProps) {
   const size = square
-    ? "h-11 min-w-[60px] rounded-[14px] px-3.5 text-[15px]"
+    ? "box-border h-11 min-w-[60px] rounded-[14px] px-3.5 text-[15px]"
     : large
       ? "h-10 rounded-full px-[18px] text-[15px]"
       : "h-8 rounded-full px-3.5 text-sm";
   return (
-    <span className={`inline-flex items-center justify-center gap-1.5 leading-none font-bold whitespace-nowrap ${size} ${TONE[tone]}`}>
-      {dot && <i className="size-2 flex-none rounded-full bg-current" aria-hidden />}
+    <span
+      className={`inline-flex items-center justify-center gap-1.5 leading-none font-bold whitespace-nowrap ${size} ${TONE[tone]}`}
+    >
+      {dot && (
+        <i className="size-2 flex-none rounded-full bg-current" aria-hidden />
+      )}
       {icon}
       {children}
     </span>
