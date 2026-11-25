@@ -123,9 +123,9 @@ export function ProfessorClasses() {
                     <p className="m-0 mt-3.5 text-sm leading-5 text-fg-secondary">학생에게 이 코드를 전달해 수업에 참여하도록 안내하세요.</p>
                   </div>
                   <div className="grid content-start gap-5">
-                    <div>
+                    <div className="[&>label]:flex-row-reverse">
                       <Toggle checked={current.open} onChange={toggleOpen} label="신규 참여 허용" />
-                      <p className="m-0 mt-2 pl-16 text-sm leading-5 text-fg-secondary">
+                      <p className="m-0 mt-2 text-sm leading-5 text-fg-secondary">
                         {current.open ? "새로운 학생은 코드로 참여할 수 있어요." : "현재 신규 학생의 참여가 닫혀 있어요."}
                       </p>
                     </div>

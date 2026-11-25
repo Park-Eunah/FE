@@ -1,6 +1,6 @@
-import { ArrowRight, BookOpen, Check, ChevronRight, Clock, Flag } from "lucide-react";
+import { ArrowRight, BookOpen, Check, Clock, Flag } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Badge, Banner, Button, Card, DataTable, IndexChip, ListRow, PageHeader, ProgressRing, StatCard } from "../../components";
+import { Badge, Banner, Card, DataTable, IndexChip, ListRow, PageHeader, ProgressRing, StatCard } from "../../components";
 import { ProfessorLayout } from "../../components/layout/ProfessorSidebar";
 import { linkButton } from "../../components/ui/classes";
 import { readProfessorClasses } from "./professorClassData";
@@ -49,7 +49,6 @@ export function ProfessorHome() {
       <PageHeader
         eyebrow="2025년 봄학기" title="안녕하세요, 박서연 교수님"
         description="수업과 과제 운영 현황을 확인하고 필요한 업무를 이어가세요."
-        actions={<Button variant="secondary" onClick={() => navigate("/professor/classes")}>수업 관리<ChevronRight size={18} strokeWidth={1.75} /></Button>}
       />
 
       <div className="grid grid-cols-3 gap-4">
@@ -77,6 +76,7 @@ export function ProfessorHome() {
           const activeProblems = active.filter((item) => item.classId === course.id);
           return (
             <ListRow
+              preserveTrailingWidth
               key={course.id}
               leading={<IndexChip tone={tone}>{course.code.split("-")[0]}</IndexChip>}
               title={course.title} subtitle={course.term}
@@ -85,7 +85,7 @@ export function ProfessorHome() {
                 <>
                   <span className="w-24"><small className="block text-sm leading-5 text-fg-secondary">수강생</small><b className="text-base leading-6">{course.count}명</b></span>
                   <span className="w-28"><small className="block text-sm leading-5 text-fg-secondary">진행 중 과제</small><b className="text-base leading-6">{activeProblems.length ? `${activeProblems.length}개` : "없음"}</b></span>
-                  <span className="flex items-center gap-3"><small className="text-sm leading-5 text-fg-secondary">제출률</small>{activeProblems.length ? <ProgressRing percent={submissionRate(activeProblems)} /> : "—"}</span>
+                  <span className="flex items-center gap-3"><small className="text-sm leading-5 text-fg-secondary">제출률</small><span className="grid w-14 place-items-center">{activeProblems.length ? <ProgressRing percent={submissionRate(activeProblems)} /> : "—"}</span></span>
                 </>
               }
             />

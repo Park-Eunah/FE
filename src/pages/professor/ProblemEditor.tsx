@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, BookOpen, FlaskConical, Plus, ShieldCheck } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   Badge,
@@ -12,7 +12,7 @@ import {
   Modal,
   PageHeader,
   Select,
-  Tabs,
+  ProgressStepper,
   Toggle,
   useToast,
 } from "../../components";
@@ -27,9 +27,9 @@ import {
 } from "./savedProblems";
 
 const STEPS = [
-  { value: "0", label: "1. 문제 입력" },
-  { value: "1", label: "2. 테스트케이스 설정" },
-  { value: "2", label: "3. 정책 설정" },
+  { title: "문제 입력", description: "문제와 실행 조건", icon: BookOpen },
+  { title: "테스트케이스 설정", description: "입력과 출력 예제", icon: FlaskConical },
+  { title: "정책 설정", description: "제출·공개 및 검사 정책", icon: ShieldCheck },
 ];
 const STEP_DESCRIPTION = [
   "과제 내용과 실행 조건을 입력하세요.",
@@ -74,7 +74,7 @@ function PolicyRow({
           {description}
         </span>
       </div>
-      <div className="flex-none">{children}</div>
+      <div className="flex-none [&>label]:flex-row-reverse">{children}</div>
     </div>
   );
 }
@@ -335,11 +335,12 @@ function ProblemEditorForm({
         }
       />
 
-      <Tabs
-        variant="line"
-        items={STEPS}
-        active={String(step)}
-        onChange={(value) => !saved && setStep(Number(value))}
+      <ProgressStepper
+        steps={STEPS}
+        current={step}
+        label={editingAssignment ? "과제 수정 단계" : "과제 등록 단계"}
+        onChange={setStep}
+        disabled={saved}
       />
 
       {step === 0 && (

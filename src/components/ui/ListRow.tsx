@@ -7,6 +7,7 @@ export interface ListRowProps {
   title: string;
   subtitle?: string;
   trailing?: ReactNode;
+  preserveTrailingWidth?: boolean;
   onClick?: () => void;
   /** 목록에서 지금 보고 있는 줄 */
   selected?: boolean;
@@ -14,16 +15,16 @@ export interface ListRowProps {
 
 const row = "flex items-center gap-5 border-b border-border bg-surface px-[30px] py-[22px] last:border-b-0";
 
-export function ListRow({ leading, title, subtitle, trailing, onClick, selected }: ListRowProps) {
+export function ListRow({ leading, title, subtitle, trailing, preserveTrailingWidth, onClick, selected }: ListRowProps) {
   const body = (
     <>
       {leading}
-      <div className="min-w-0 flex-1">
+      <div className={`min-w-0 flex-1${preserveTrailingWidth ? " [overflow-wrap:anywhere]" : ""}`}>
         <strong className="block text-[17px] leading-6 font-bold text-fg">{title}</strong>
         {subtitle && <span className="block text-sm leading-5 text-fg-secondary">{subtitle}</span>}
       </div>
       {(trailing || onClick) && (
-        <div className="flex items-center gap-6">
+        <div className={`flex items-center gap-6${preserveTrailingWidth ? " shrink-0" : ""}`}>
           {trailing}
           {onClick && <ChevronRight size={22} strokeWidth={1.75} aria-hidden />}
         </div>
