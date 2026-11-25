@@ -5,8 +5,9 @@ import {
   Badge, Banner, Button, Card, CodeBlock, EmptyState, FlagCard, FormField, ListRow, MetaStats, Modal, PageHeader, Pagination, ScoreBreakdown, IndexChip, useToast,
 } from "../../components";
 import { ProfessorLayout } from "../../components/layout/ProfessorSidebar";
-import { REVIEWS, type ReviewItem } from "./mockReviews";
+import { type ReviewItem } from "./mockReviews";
 import { usePagination } from "./usePagination";
+import { getPendingReviews, setReviewStatus, useProfessorMockState } from "./professorMockState";
 import { readEditableProblem, readProfessorAssignments } from "./professorAssignments";
 
 function formatAway(seconds: number) {
@@ -31,10 +32,10 @@ export function GradingReview() {
   useEffect(() => setQuery(""), [assignmentKey]);
   const [adjustments, setAdjustments] = useState<Record<number, number>>({});
   const [reasons, setReasons] = useState<Record<number, string>>({});
-  const [resolved, setResolved] = useState<Record<number, "held" | "confirmed">>({});
+  const allPendingReviews = getPendingReviews(useProfessorMockState());
   const [showCode, setShowCode] = useState(false);
   const [showReasonError, setShowReasonError] = useState(false);
-  const pendingReviews = REVIEWS.filter((item) => !resolved[item.id] && (!assignmentKey || (assignment && item.assignmentKey === assignmentKey)));
+  const pendingReviews = allPendingReviews.filter((item) => !assignmentKey || item.assignmentKey === assignment?.editKey);
   const assignmentTitles = new Map(assignments.map((item) => [item.editKey, item.title]));
   const visibleReviews = pendingReviews.filter((item) =>
     `${item.name} ${item.studentId} ${assignmentTitles.get(item.assignmentKey) ?? item.problem}`.toLowerCase().includes(query.toLowerCase()));
@@ -55,7 +56,6 @@ export function GradingReview() {
   })();
   const adjustment = current ? adjustments[current.id] ?? 0 : 0;
   const reason = current ? reasons[current.id] ?? "" : "";
-  const sidebarPendingCount = REVIEWS.filter((item) => !resolved[item.id]).length + 2;
   const reasonError = (showReasonError || adjustment !== 0) && adjustment !== 0 && !reason.trim() ? "점수를 조정한 경우 조정 사유를 입력해주세요" : undefined;
 
   const selectSubmission = (item: ReviewItem) => {
@@ -74,7 +74,7 @@ export function GradingReview() {
       return;
     }
     setShowReasonError(false);
-    setResolved((items) => ({ ...items, [current.id]: action }));
+    setReviewStatus(current.id, action);
     const next = pendingReviews.find((item) => item.id !== current.id);
     const nextParams = new URLSearchParams(searchParams);
     if (next) nextParams.set("submission", String(next.id));
@@ -92,7 +92,7 @@ export function GradingReview() {
   const flagLine = current ? current.fullCode.split("\n").findIndex((line) => line.includes(current.code.trim())) + 1 : 0;
 
   return (
-    <ProfessorLayout pendingCount={sidebarPendingCount}>
+    <ProfessorLayout>
       <PageHeader
         eyebrow="PROFESSOR · GRADING REVIEW" title="채점 검토"
         description={!assignmentKey ? "FLAG나 수동 조정이 필요한 제출만 선택적으로 검토하세요." : assignment ? undefined : "과제를 찾을 수 없어요."}

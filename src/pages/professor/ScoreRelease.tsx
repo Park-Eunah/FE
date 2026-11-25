@@ -1,32 +1,39 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Badge, Banner, Button, Card, ConfirmModal, DataTable, DateTimePicker, PageHeader, Pagination, RadioGroup, useToast,
+  Badge, Banner, Button, Card, ConfirmModal, DataTable, DateTimePicker, EmptyState, PageHeader, Pagination, RadioGroup, useToast,
 } from "../../components";
 import { ProfessorLayout } from "../../components/layout/ProfessorSidebar";
-import { RELEASE_TASKS } from "./mockScoreRelease";
+import { getReleaseTasks } from "./mockScoreRelease";
+import { readProfessorAssignments } from "./professorAssignments";
+import { readProfessorClasses } from "./professorClassData";
+import { setScoreRelease, useProfessorMockState } from "./professorMockState";
 import { usePagination } from "./usePagination";
 
 export function ScoreRelease() {
   const navigate = useNavigate();
   const toast = useToast();
-  const [tasks, setTasks] = useState(RELEASE_TASKS);
-  const [selectedId, setSelectedId] = useState(1);
+  const [assignments] = useState(readProfessorAssignments);
+  const [classes] = useState(readProfessorClasses);
+  const tasks = getReleaseTasks(assignments, classes, useProfessorMockState());
+  const [selectedId, setSelectedId] = useState(tasks.find((task) => !task.released)?.id ?? tasks[0]?.id);
   const [mode, setMode] = useState<"now" | "scheduled">("now");
   const [scheduledAt, setScheduledAt] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const pager = usePagination(tasks, 5, "", true);
   const selected = tasks.find((task) => task.id === selectedId) ?? tasks[0];
 
+  if (!selected) return <ProfessorLayout><EmptyState title="공개할 점수가 없어요" /></ProfessorLayout>;
+
   const releaseNow = () => {
-    setTasks((items) => items.map((item) => item.id === selectedId ? { ...item, released: true, pending: 0, scheduledAt: undefined } : item));
+    setScoreRelease(selected.id, { released: true });
     setConfirmOpen(false);
     toast("success", `${selected.title} 점수를 공개했어요.`);
   };
   const release = () => {
     if (mode === "now") { setConfirmOpen(true); return; }
-    if (!scheduledAt) { toast("error", "점수를 공개할 날짜와 시간을 선택해주세요."); return; }
-    setTasks((items) => items.map((item) => item.id === selectedId ? { ...item, scheduledAt } : item));
+    if (!(Date.parse(scheduledAt) > Date.now())) { toast("error", "현재 시각 이후의 공개 날짜와 시간을 선택해주세요."); return; }
+    setScoreRelease(selected.id, { scheduledAt });
     toast("success", `${new Date(scheduledAt).toLocaleString("ko-KR")}에 공개하도록 예약했어요.`);
   };
 
@@ -49,7 +56,7 @@ export function ScoreRelease() {
 
         <Card
           title={selected.title} subtitle={`${selected.course} · 제출 ${selected.submitted} / ${selected.total} · 미확정 ${selected.pending}건`}
-          action={selected.released ? <Badge tone="success">공개 완료</Badge> : <Badge tone="neutral">공개 전</Badge>}
+          action={selected.released ? <Badge tone="success">공개 완료</Badge> : selected.scheduledAt ? <Badge tone="info">${new Date(selected.scheduledAt).toLocaleString("ko-KR")} 공개 예정</Badge> : <Badge tone="neutral">공개 전</Badge>}
         >
           <h3 className="m-0 mb-3 text-base leading-6 font-bold">공개 방식</h3>
           <RadioGroup
@@ -70,7 +77,9 @@ export function ScoreRelease() {
             </div>
           )}
           <div className="mt-6 flex justify-end gap-3">
-            <Button variant="secondary" onClick={() => navigate("/professor/review")}>미확정 검토하기</Button>
+            {selected.pending > 0 && (
+              <Button variant="secondary" onClick={() => navigate(`/professor/review?${new URLSearchParams({ assignment: selected.editKey ?? "" })}`)}>미확정 검토하기</Button>
+            )}
             <Button disabled={selected.released} onClick={release}>{selected.released ? "공개 완료" : mode === "now" ? "점수 공개" : "공개 예약"}</Button>
           </div>
         </Card>

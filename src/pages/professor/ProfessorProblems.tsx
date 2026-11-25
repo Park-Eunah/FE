@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
-import { Check, Clock, Flag, Plus } from "lucide-react";
+import { Check, Flag, ListChecks, Plus } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Badge, Button, Card, DataTable, EmptyState, IndexChip, PageHeader, Pagination, StatCard } from "../../components";
+import { Badge, Button, Card, DataTable, EmptyState, IndexChip, PageHeader, Pagination, Select, StatCard } from "../../components";
 import { ProfessorLayout } from "../../components/layout/ProfessorSidebar";
+import { getPendingReviews, useProfessorMockState } from "./professorMockState";
 import { usePagination } from "./usePagination";
 import { ClassAssignmentDetails } from "./ClassAssignmentDetails";
-import { getAssignmentStatus, readProfessorAssignments, useAssignmentClock, type AssignmentView } from "./professorAssignments";
+import { ASSIGNMENT_SORT_OPTIONS, getAssignmentStatus, readProfessorAssignments, sortAssignments, useAssignmentClock, type AssignmentView } from "./professorAssignments";
 
 const STATUS_TONE = { 공개: "success", 예약: "info", 종료: "neutral" } as const;
 const SETTINGS = [
@@ -20,12 +21,16 @@ export function ProfessorProblems() {
   const [searchParams, setSearchParams] = useSearchParams();
   const detailKey = searchParams.get("assignment");
   const [assignments] = useState(readProfessorAssignments);
+  const pendingCount = getPendingReviews(useProfessorMockState()).length;
+  const submittedCount = assignments.reduce((sum, item) => sum + item.submitted, 0);
+  const flagCount = assignments.reduce((sum, item) => sum + item.flags, 0);
   const now = useAssignmentClock(assignments);
   const [query, setQuery] = useState("");
+  const [sort, setSort] = useState(ASSIGNMENT_SORT_OPTIONS[0].value);
   const filtered = useMemo(() => assignments
     .filter((item) => item.title.toLowerCase().includes(query.trim().toLowerCase()))
     .map((item) => ({ ...item, status: getAssignmentStatus(item, now) })), [assignments, query, now]);
-  const pager = usePagination(filtered, 5, query, true);
+  const pager = usePagination(sortAssignments(filtered, sort), 5, JSON.stringify([query, sort]), true);
   const detail = detailKey ? assignments.find((item) => item.editKey === detailKey) : undefined;
 
   const openAssignment = (item: AssignmentView) => {
@@ -47,11 +52,14 @@ export function ProfessorProblems() {
           />
 
           <div className="grid grid-cols-3 gap-4">
-            <StatCard tone="green" icon={<Check {...ICON} />} label="제출 완료" value={286} sub="전체 과제 누적" />
-            <StatCard tone="orange" icon={<Flag {...ICON} />} label="검토 대기" value={7} sub="FLAG 제출 7건" />
-            <StatCard icon={<Clock {...ICON} />} label="채점 중" value={12} sub="평균 4.2초 소요" />
+            <StatCard tone="green" icon={<Check {...ICON} />} label="제출 완료" value={submittedCount} sub="전체 과제 누적" />
+            <StatCard tone="orange" icon={<Flag {...ICON} />} label="검토 대기" value={pendingCount} sub="채점 검토 목록 기준" />
+            <StatCard icon={<ListChecks {...ICON} />} label="FLAG 제출" value={flagCount} sub="전체 과제 누적" />
           </div>
 
+          <div className="self-end w-52">
+            <Select label="과제 정렬" value={sort} onChange={setSort} options={ASSIGNMENT_SORT_OPTIONS} />
+          </div>
           <Card padding="table" title="과제 목록" subtitle="마감과 제출 현황을 한눈에 확인하세요.">
             <DataTable<AssignmentView>
               rows={pager.items} rowKey={(item) => item.id} onRowClick={openAssignment}

@@ -6,6 +6,8 @@ import { Sidebar, type MenuItem } from "./Sidebar";
 import { SidebarHelpCard } from "./SidebarHelpCard";
 import { Topbar } from "./Topbar";
 
+import { getPendingReviews, useProfessorMockState } from "../../pages/professor/professorMockState";
+
 const ICON = { size: 24, strokeWidth: 1.75 } as const;
 const MENU: MenuItem[] = [
   { path: "/professor", label: "홈", icon: <Home {...ICON} /> },
@@ -27,7 +29,6 @@ const NOTICE_OF: Record<string | number, number> = { 1: 1, 2: 2, 3: 3 };
 
 export interface ProfessorLayoutProps {
   /** 사이드바 "채점 검토" 옆 숫자 */
-  pendingCount?: number;
   /** 상단 검색창 입력을 받을 때만 넘긴다 */
   onSearch?: (query: string) => void;
   searchPlaceholder?: string;
@@ -35,9 +36,10 @@ export interface ProfessorLayoutProps {
 }
 
 /** 교수 화면 공통 틀: 학생 화면(StudentLayout)과 같은 Sidebar + Topbar 를 쓴다. 각 교수 화면이 이 틀로 직접 감싼다. */
-export function ProfessorLayout({ pendingCount = 7, onSearch, searchPlaceholder, children }: ProfessorLayoutProps) {
+export function ProfessorLayout({ onSearch, searchPlaceholder, children }: ProfessorLayoutProps) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const pendingCount = getPendingReviews(useProfessorMockState()).length;
   const [bellOpen, setBellOpen] = useState(false);
   const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
 

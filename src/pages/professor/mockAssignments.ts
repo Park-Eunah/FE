@@ -15,20 +15,20 @@ export type Assignment = {
 };
 
 /* TODO: 과제 목록 API 연결 후 서버 응답으로 교체. 마감 일시(deadline)가 지나면 화면에서 "종료"로 보인다 */
-export const ASSIGNMENTS: Assignment[] = [
-  { id: 1, classId: "algorithms", title: "두 수의 합", due: "11월 10일 · 마감", submitted: 50, total: 52, flags: 4, status: "공개" },
-  { id: 2, classId: "data-structures", title: "괄호 문자열 검사", due: "12월 2일", submitted: 43, total: 60, flags: 3, status: "공개" },
-  { id: 3, classId: "algorithms", title: "최단 경로 찾기", due: "12월 5일", submitted: 38, total: 52, flags: 2, status: "공개" },
-  { id: 4, classId: "data-structures", title: "우선순위 큐 구현", due: "12월 9일", submitted: 0, total: 60, flags: 0, status: "초안" },
-  { id: 5, classId: "data-structures", title: "스택 수열", due: "11월 18일 · 마감", submitted: 57, total: 60, flags: 1, status: "공개" },
-  { id: 6, classId: "operating-systems", title: "프로세스 스케줄링", due: "12월 3일", submitted: 31, total: 45, flags: 2, status: "공개" },
-  { id: 7, classId: "databases", title: "SQL 조인 쿼리", due: "12월 7일", submitted: 29, total: 55, flags: 3, status: "공개" },
-  { id: 8, classId: "networks", title: "소켓 통신 구현", due: "11월 20일 · 마감", submitted: 38, total: 40, flags: 0, status: "공개" },
-  { id: 9, classId: "databases", title: "정규화 연습", due: "12월 12일", submitted: 0, total: 55, flags: 0, status: "초안" },
-  { id: 10, classId: "python", title: "리스트 컴프리헨션", due: "11월 12일 · 마감", submitted: 47, total: 48, flags: 1, status: "공개" },
-  { id: 11, classId: "data-structures", title: "이진 탐색 트리", due: "12월 15일", submitted: 12, total: 60, flags: 0, status: "공개" },
-  { id: 12, classId: "algorithms", title: "동적 계획법 기초", due: "12월 18일", submitted: 9, total: 52, flags: 1, status: "공개" },
-  { id: 13, classId: "ai-basics", title: "선형회귀 구현", due: "12월 10일", submitted: 20, total: 62, flags: 2, status: "공개" },
+export const ASSIGNMENTS: Omit<Assignment, "flags">[] = [
+  { id: 1, classId: "algorithms", title: "두 수의 합", due: "11월 10일 · 마감", submitted: 50, total: 52, status: "공개" },
+  { id: 2, classId: "data-structures", title: "괄호 문자열 검사", due: "12월 2일", submitted: 43, total: 60, status: "공개" },
+  { id: 3, classId: "algorithms", title: "최단 경로 찾기", due: "12월 5일", submitted: 38, total: 52, status: "공개" },
+  { id: 4, classId: "data-structures", title: "우선순위 큐 구현", due: "12월 9일", submitted: 0, total: 60, status: "초안" },
+  { id: 5, classId: "data-structures", title: "스택 수열", due: "11월 18일 · 마감", submitted: 57, total: 60, status: "공개" },
+  { id: 6, classId: "operating-systems", title: "프로세스 스케줄링", due: "12월 3일", submitted: 31, total: 45, status: "공개" },
+  { id: 7, classId: "databases", title: "SQL 조인 쿼리", due: "12월 7일", submitted: 29, total: 55, status: "공개" },
+  { id: 8, classId: "networks", title: "소켓 통신 구현", due: "11월 20일 · 마감", submitted: 38, total: 40, status: "공개" },
+  { id: 9, classId: "databases", title: "정규화 연습", due: "12월 12일", submitted: 0, total: 55, status: "초안" },
+  { id: 10, classId: "python", title: "리스트 컴프리헨션", due: "11월 12일 · 마감", submitted: 47, total: 48, status: "공개" },
+  { id: 11, classId: "data-structures", title: "이진 탐색 트리", due: "12월 15일", submitted: 12, total: 60, status: "공개" },
+  { id: 12, classId: "algorithms", title: "동적 계획법 기초", due: "12월 18일", submitted: 9, total: 52, status: "공개" },
+  { id: 13, classId: "ai-basics", title: "선형회귀 구현", due: "12월 10일", submitted: 20, total: 62, status: "공개" },
 ];
 
 export type ProblemDetail = {

@@ -9,6 +9,7 @@ import {
   DateTimePicker,
   EmptyState,
   FormField,
+  Modal,
   PageHeader,
   Select,
   Tabs,
@@ -16,7 +17,7 @@ import {
   useToast,
 } from "../../components";
 import { ProfessorLayout } from "../../components/layout/ProfessorSidebar";
-import { readEditableProblem } from "./professorAssignments";
+import { readEditableProblem, readProfessorDrafts } from "./professorAssignments";
 import { readProfessorClasses } from "./professorClassData";
 import { InspectionPolicyEditor } from "./InspectionPolicyEditor";
 import {
@@ -42,10 +43,12 @@ export function ProblemEditor() {
   const section = searchParams.get("section");
   const editStep = section === "cases" ? 1 : section === "policy" ? 2 : 0;
   const courseId = searchParams.get("course");
+  const draftKey = problemKey ? null : searchParams.get("draft");
   return (
     <ProblemEditorForm
-      key={problemKey ? `${problemKey}-${editStep}` : (courseId ?? "new")}
+      key={JSON.stringify([problemKey, editStep, courseId, draftKey])}
       problemKey={problemKey}
+      draftKey={draftKey}
       editStep={editStep}
       courseId={courseId}
     />
@@ -78,10 +81,12 @@ function PolicyRow({
 
 function ProblemEditorForm({
   problemKey,
+  draftKey,
   editStep,
   courseId,
 }: {
   problemKey?: string;
+  draftKey: string | null;
   editStep: number;
   courseId: string | null;
 }) {
@@ -89,18 +94,22 @@ function ProblemEditorForm({
   const toast = useToast();
   const [entry] = useState(() => {
     try {
-      return problemKey ? readEditableProblem(problemKey) : undefined;
+      const key = problemKey ?? draftKey;
+      const found = key ? readEditableProblem(key) : undefined;
+      if (draftKey && (found?.problem.status !== "초안" || (courseId && found.problem.classId !== courseId))) return undefined;
+      return found;
     } catch {
       return undefined;
     }
   });
   const original = entry?.problem;
-  const linkedCourseId = problemKey ? original?.classId : courseId;
+  const editingAssignment = Boolean(original && original.status !== "초안");
+  const linkedCourseId = original ? original.classId : courseId;
   const course = readProfessorClasses().find(
     (item) => item.id === linkedCourseId,
   );
   const returnPath =
-    !problemKey && course
+    !editingAssignment && course
       ? `/professor/classes?course=${encodeURIComponent(course.id)}&tab=assignments`
       : "/professor/problems";
   const [title, setTitle] = useState(original?.title ?? "");
@@ -146,6 +155,8 @@ function ProblemEditorForm({
       Math.max(0, ...(original?.testCases ?? []).map((item) => item.id)) + 1,
   );
   const [saved, setSaved] = useState(false);
+  const [showDrafts, setShowDrafts] = useState(false);
+  const drafts = showDrafts ? readProfessorDrafts(courseId) : [];
   const [showErrors, setShowErrors] = useState(false);
   const titleError =
     showErrors && !title.trim() ? "과제 제목을 입력해주세요" : undefined;
@@ -183,7 +194,7 @@ function ProblemEditorForm({
   };
   const save = (publish: boolean) => {
     if (saved) return;
-    if (!problemKey && courseId && !course) {
+    if (linkedCourseId && !course) {
       toast("error", "등록할 수업을 찾지 못했어요.");
       return;
     }
@@ -191,10 +202,10 @@ function ProblemEditorForm({
       if (step !== 0) setStep(0);
       return;
     }
-    const updatePublication = Boolean(original) || publish;
+    const updatePublication = editingAssignment || publish;
     const scheduled = updatePublication && !publishImmediately;
     const publicationTime = Date.parse(publishDateTime);
-    const samePublicationTime =
+    const samePublicationTime = editingAssignment &&
       Math.floor(originalPublishAt / 60_000) ===
       Math.floor(publicationTime / 60_000);
     if (
@@ -206,19 +217,11 @@ function ProblemEditorForm({
       if (step !== 2) setStep(2);
       return;
     }
-    const status = original
-      ? updatePublication && original.status !== "초안"
-        ? scheduled
-          ? "공개 예약"
-          : "공개"
-        : original.status
-      : scheduled
-        ? "공개 예약"
-        : publish
-          ? "공개"
-          : "초안";
+    const status = scheduled ? "공개 예약" : updatePublication ? "공개" : "초안";
     const publishAt = !updatePublication
-      ? original?.publishAt
+      ? !publishImmediately && Number.isFinite(publicationTime)
+        ? new Date(publicationTime).toISOString()
+        : undefined
       : scheduled
         ? samePublicationTime
           ? original?.publishAt
@@ -255,7 +258,7 @@ function ProblemEditorForm({
     setSaved(true);
     toast(
       "success",
-      original
+      editingAssignment
         ? "변경사항을 저장했어요."
         : scheduled
           ? "문제 공개를 예약했어요."
@@ -266,7 +269,7 @@ function ProblemEditorForm({
     window.setTimeout(() => navigate(returnPath), 900);
   };
 
-  if (problemKey && !original) {
+  if ((problemKey || draftKey) && !original) {
     return (
       <ProfessorLayout>
         <Card>
@@ -275,9 +278,11 @@ function ProblemEditorForm({
             action={
               <Button
                 variant="secondary"
-                onClick={() => navigate("/professor/problems")}
+                onClick={() => navigate(draftKey
+                  ? `/professor/problems/new${courseId ? `?course=${encodeURIComponent(courseId)}` : ""}`
+                  : "/professor/problems")}
               >
-                문제 목록으로 돌아가기
+                {draftKey ? "문제 등록으로 돌아가기" : "문제 목록으로 돌아가기"}
               </Button>
             }
           />
@@ -294,11 +299,11 @@ function ProblemEditorForm({
             ? original.title
             : `${course?.title ?? "PROFESSOR"} · NEW ASSIGNMENT`
         }
-        title={original ? "문제 수정" : "새 문제 만들기"}
+        title={editingAssignment ? "문제 수정" : "새 문제 만들기"}
         description={STEP_DESCRIPTION[step]}
         actions={
           <>
-            {original && (
+            {editingAssignment && (
               <Button
                 variant="secondary"
                 icon={<ArrowLeft size={20} strokeWidth={1.75} />}
@@ -307,7 +312,7 @@ function ProblemEditorForm({
                 문제 목록으로 돌아가기
               </Button>
             )}
-            {!original && course && (
+            {!editingAssignment && course && (
               <Button
                 variant="secondary"
                 icon={<ArrowLeft size={20} strokeWidth={1.75} />}
@@ -316,14 +321,15 @@ function ProblemEditorForm({
                 수업으로 돌아가기
               </Button>
             )}
-            {!original && (
-              <Button
-                variant="secondary"
-                disabled={saved}
-                onClick={() => save(false)}
-              >
-                초안 저장
-              </Button>
+            {!editingAssignment && (
+              <>
+                <Button variant="secondary" disabled={saved} onClick={() => setShowDrafts(true)}>
+                  초안 불러오기
+                </Button>
+                <Button variant="secondary" disabled={saved} onClick={() => save(false)}>
+                  초안 저장
+                </Button>
+              </>
             )}
           </>
         }
@@ -511,11 +517,7 @@ function ProblemEditorForm({
           <Card title="제출 정책">
             <PolicyRow
               title="문제 공개 시점"
-              description={
-                original?.status === "초안"
-                  ? "초안에 공개 설정을 저장해요."
-                  : "바로 공개하거나 공개 일시를 예약할 수 있어요."
-              }
+              description="바로 공개하거나 공개 일시를 예약할 수 있어요."
             >
               <Toggle
                 checked={publishImmediately}
@@ -573,14 +575,14 @@ function ProblemEditorForm({
         )}
         {step < STEPS.length - 1 && (
           <Button
-            variant={original ? "secondary" : "primary"}
+            variant={editingAssignment ? "secondary" : "primary"}
             disabled={saved}
             onClick={nextStep}
           >
             다음
           </Button>
         )}
-        {original ? (
+        {editingAssignment ? (
           <Button disabled={saved} onClick={() => save(false)}>
             변경사항 저장
           </Button>
@@ -592,6 +594,25 @@ function ProblemEditorForm({
           )
         )}
       </div>
+      <Modal open={showDrafts} onClose={() => setShowDrafts(false)} title="초안 불러오기">
+        {drafts.length ? (
+          <ul className="m-0 grid list-none gap-2 p-0">
+            {drafts.map((draft) => (
+              <li key={draft.editKey}>
+                <Button variant="secondary" onClick={() => {
+                  if (!draft.editKey) return;
+                  const params = new URLSearchParams({ draft: draft.editKey });
+                  if (courseId) params.set("course", courseId);
+                  setShowDrafts(false);
+                  navigate(`/professor/problems/new?${params}`);
+                }}>
+                  {draft.title}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        ) : <EmptyState title="저장된 초안이 없어요" />}
+      </Modal>
     </ProfessorLayout>
   );
 }

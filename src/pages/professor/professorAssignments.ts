@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ASSIGNMENTS, PROBLEM_DETAILS } from "./mockAssignments";
+import { REVIEWS } from "./mockReviews";
 import { readProfessorClasses } from "./professorClassData";
 import type { Assignment } from "./mockAssignments";
 import { readSavedProblems, type SavedProblem } from "./savedProblems";
@@ -9,6 +10,39 @@ export type { Assignment };
 export type AssignmentState = "예약" | "공개" | "종료";
 
 export type AssignmentView = Omit<Assignment, "status"> & { status: AssignmentState };
+
+type AssignmentSort = "default" | "registered" | "deadline" | "title-asc" | "title-desc";
+
+export const ASSIGNMENT_SORT_OPTIONS: { value: AssignmentSort; label: string }[] = [
+  { value: "default", label: "기본 순서" },
+  { value: "registered", label: "등록순 (최신순)" },
+  { value: "deadline", label: "마감순" },
+  { value: "title-asc", label: "제목 오름차순" },
+  { value: "title-desc", label: "제목 내림차순" },
+];
+
+const titleOrder = new Intl.Collator("ko-KR", { numeric: true });
+
+function deadlineOrder(deadline?: string) {
+  const time = Date.parse(deadline ?? "");
+  return Number.isFinite(time) ? time : Infinity;
+}
+
+export function sortAssignments<T extends Pick<Assignment, "id" | "deadline" | "title">>(items: T[], sort: AssignmentSort) {
+  if (sort === "default") return items;
+  return [...items].sort((a, b) => {
+    switch (sort) {
+      case "registered": return b.id - a.id;
+      case "deadline": {
+        const first = deadlineOrder(a.deadline);
+        const second = deadlineOrder(b.deadline);
+        return first === second ? 0 : first < second ? -1 : 1;
+      }
+      case "title-asc": return titleOrder.compare(a.title, b.title);
+      case "title-desc": return titleOrder.compare(b.title, a.title);
+    }
+  });
+}
 
 export function readEditableProblem(key: string): { problem: SavedProblem; index?: number } | undefined {
   const saved = readSavedProblems();
@@ -30,8 +64,16 @@ export function readEditableProblem(key: string): { problem: SavedProblem; index
   };
 }
 
-export function readProfessorAssignments(): Assignment[] {
-  const samples = ASSIGNMENTS.map((item) => ({ ...item, editKey: `sample-${item.id}`, deadline: PROBLEM_DETAILS[item.id].deadline }));
+function readAllProfessorAssignments(): Assignment[] {
+  const samples = ASSIGNMENTS.map((item) => {
+    const editKey = `sample-${item.id}`;
+    return {
+      ...item,
+      editKey,
+      deadline: PROBLEM_DETAILS[item.id].deadline,
+      flags: REVIEWS.filter((review) => review.assignmentKey === editKey).length,
+    };
+  });
   try {
     const classes = readProfessorClasses();
     const saved = readSavedProblems();
@@ -61,6 +103,16 @@ export function readProfessorAssignments(): Assignment[] {
   } catch {
     return samples;
   }
+}
+
+export function readProfessorAssignments() {
+  return readAllProfessorAssignments().filter((item) => item.status !== "초안");
+}
+
+export function readProfessorDrafts(courseId: string | null) {
+  return readAllProfessorAssignments().filter((item) =>
+    item.status === "초안" && (!courseId || item.classId === courseId),
+  );
 }
 
 export function getAssignmentStatus(assignment: Assignment, now: number): AssignmentState {

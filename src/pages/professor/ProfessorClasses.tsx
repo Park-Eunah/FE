@@ -7,7 +7,7 @@ import {
 } from "../../components";
 import { ProfessorLayout } from "../../components/layout/ProfessorSidebar";
 import { ClassAssignmentDetails } from "./ClassAssignmentDetails";
-import { getAssignmentStatus, readProfessorAssignments, useAssignmentClock, type AssignmentState } from "./professorAssignments";
+import { ASSIGNMENT_SORT_OPTIONS, getAssignmentStatus, readProfessorAssignments, sortAssignments, useAssignmentClock, type AssignmentState } from "./professorAssignments";
 import { usePagination } from "./usePagination";
 import { getMockClassStudent, readProfessorClasses, saveProfessorClasses, type ClassInfo } from "./professorClassData";
 
@@ -29,6 +29,7 @@ export function ProfessorClasses() {
   const selected = courseId ? classes.findIndex((course) => course.id === courseId) : legacyIndex;
   const detailTab = searchParams.get("tab") === "students" ? "students" : "assignments";
   const [query, setQuery] = useState("");
+  const [assignmentSort, setAssignmentSort] = useState(ASSIGNMENT_SORT_OPTIONS[0].value);
   const [showNew, setShowNew] = useState(false);
   const [showReissue, setShowReissue] = useState(false);
   const [newName, setNewName] = useState("");
@@ -74,7 +75,7 @@ export function ProfessorClasses() {
   const filteredClasses = classes.filter((item) => item.title.toLowerCase().includes(keyword) || item.code.toLowerCase().includes(keyword));
   const students = current ? Array.from({ length: current.count }, (_, index) => ({ no: index + 1, ...getMockClassStudent(current.id, index) })) : [];
   const classPager = usePagination(filteredClasses, 5, keyword, true);
-  const assignmentPager = usePagination(assignments, 5, current?.id, true);
+  const assignmentPager = usePagination(sortAssignments(assignments, assignmentSort), 5, JSON.stringify([current?.id, assignmentSort]), true);
   const studentPager = usePagination(students, 10, current?.id, true);
 
   return (
@@ -139,6 +140,11 @@ export function ProfessorClasses() {
                 items={[{ value: "assignments", label: "과제", count: assignments.length }, { value: "students", label: "수강생", count: current.count }]}
               />
 
+              {detailTab === "assignments" && (
+                <div className="self-end w-52">
+                  <Select label="과제 정렬" value={assignmentSort} onChange={setAssignmentSort} options={ASSIGNMENT_SORT_OPTIONS} />
+                </div>
+              )}
               {detailTab === "assignments" ? (
                 <Card
                   padding="table" title="과제 목록" subtitle="과제를 선택하면 상세 정보와 제출 현황을 볼 수 있어요."
