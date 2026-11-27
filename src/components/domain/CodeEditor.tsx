@@ -28,18 +28,18 @@ export function CodeEditor({
   const ref = useRef<HTMLTextAreaElement>(null);
   const lines = Math.max(value.split("\n").length, minLines);
   return (
-    <div className="flex flex-col overflow-hidden rounded-2xl bg-code-bg text-code-text">
+    <div className="flex flex-col overflow-hidden rounded-2xl bg-code-bg text-editor-tab">
       <div className="flex items-center justify-between border-b border-white/6 px-7 py-5">
         <span className="flex gap-2.5" aria-hidden>
-          <span className="size-3.5 rounded-full bg-[#EF6B6B]" />
-          <span className="size-3.5 rounded-full bg-[#E7B84F]" />
-          <span className="size-3.5 rounded-full bg-[#4BBB77]" />
+          <span className="size-3.5 rounded-full bg-editor-red" />
+          <span className="size-3.5 rounded-full bg-editor-amber" />
+          <span className="size-3.5 rounded-full bg-editor-green" />
         </span>
         <span className="flex gap-2.5">
-          <span className="rounded-md border border-white/8 bg-code-chip px-3.5 py-[9px] text-sm leading-none font-medium text-[#CDD5E7]">
+          <span className="rounded-md border border-white/8 bg-code-chip px-3.5 py-[9px] text-sm leading-none font-medium text-editor-tab">
             {language}
           </span>
-          <span className="rounded-md border border-white/8 bg-code-chip px-3.5 py-[9px] text-sm leading-none font-medium text-[#CDD5E7]">
+          <span className="rounded-md border border-white/8 bg-code-chip px-3.5 py-[9px] text-sm leading-none font-medium text-editor-tab">
             {filename}
           </span>
         </span>
@@ -52,14 +52,11 @@ export function CodeEditor({
           <div
             key={n}
             aria-hidden
-            className="absolute inset-x-0 bg-[rgba(255,176,64,.18)]"
+            className="absolute inset-x-0 bg-editor-line/18"
             style={{ top: PAD + (n - 1) * LH, height: LH }}
           />
         ))}
-        <div
-          aria-hidden
-          className="relative pr-[22px] pl-7 text-right text-code-no"
-        >
+        <div aria-hidden className="relative pr-[22px] pl-7 text-right text-code-no">
           {Array.from({ length: lines }, (_, i) => (
             <div key={i} style={{ height: LH }}>
               {i + 1}

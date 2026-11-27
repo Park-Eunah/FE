@@ -14,6 +14,7 @@ export interface NotificationItem {
 }
 export interface NotificationPanelProps {
   title: string;
+  readableTimestamp?: boolean;
   items: NotificationItem[];
   onReadAll?: () => void;
   onViewAll?: () => void;
@@ -23,6 +24,7 @@ export interface NotificationPanelProps {
 }
 export function NotificationPanel({
   title,
+  readableTimestamp,
   items,
   onReadAll,
   onViewAll,
@@ -39,11 +41,7 @@ export function NotificationPanel({
       <div className="flex items-center gap-3 border-b border-border px-[26px] py-[22px]">
         <h3 className="m-0 text-xl leading-7 font-bold">{title}</h3>
         {unread > 0 && <Badge tone="info">새 알림 {unread}</Badge>}
-        <button
-          type="button"
-          className={`${linkButtonBase} ml-auto text-sm`}
-          onClick={onReadAll}
-        >
+        <button type="button" className={`${linkButtonBase} ml-auto text-sm`} onClick={onReadAll}>
           모두 읽음
         </button>
       </div>
@@ -60,13 +58,13 @@ export function NotificationPanel({
             {n.icon ?? <Bell size={22} strokeWidth={1.75} aria-hidden />}
           </span>
           <span className="block">
-            <strong className="block text-base leading-[22px] font-bold">
-              {n.title}
-            </strong>
+            <strong className="block text-base leading-[22px] font-bold">{n.title}</strong>
             <span className="mx-0 mt-0.5 mb-1 block text-sm leading-5 text-fg-secondary">
               {n.body}
             </span>
-            <small className="text-xs leading-4 text-fg-tertiary">
+            <small
+              className={`leading-4 text-fg-tertiary ${readableTimestamp ? "text-[13px]" : "text-xs"}`}
+            >
               {n.time}
             </small>
           </span>

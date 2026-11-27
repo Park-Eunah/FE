@@ -1,13 +1,30 @@
 import { useEffect, useState } from "react";
-import { ASSIGNMENTS, PROBLEM_DETAILS } from "./mockAssignments";
-import { REVIEWS } from "./mockReviews";
+import { ASSIGNMENTS, PROBLEM_DETAILS } from "../../mocks/professor";
+import { REVIEWS } from "../../mocks/professor";
 import { readProfessorClasses } from "./professorClassData";
-import type { Assignment } from "./mockAssignments";
+import type { Assignment } from "../../mocks/professor";
 import { readSavedProblems, type SavedProblem } from "./savedProblems";
 
 export type { Assignment };
 
-export type AssignmentState = "예약" | "공개" | "종료";
+export const ASSIGNMENT_STATUS_LABEL = {
+  SCHEDULED: "예약",
+  PUBLISHED: "공개",
+  CLOSED: "종료",
+} as const;
+
+export type AssignmentState = keyof typeof ASSIGNMENT_STATUS_LABEL;
+
+export function formatAssignmentDeadline(deadline: string | undefined, now: number) {
+  const timestamp = Date.parse(deadline ?? "");
+  if (!Number.isFinite(timestamp)) return "마감일 미설정";
+  const date = new Intl.DateTimeFormat("ko-KR", {
+    month: "long",
+    day: "numeric",
+    timeZone: "Asia/Seoul",
+  }).format(timestamp);
+  return timestamp <= now ? `${date} · 마감` : date;
+}
 
 export type AssignmentView = Omit<Assignment, "status"> & { status: AssignmentState };
 
@@ -28,26 +45,36 @@ function deadlineOrder(deadline?: string) {
   return Number.isFinite(time) ? time : Infinity;
 }
 
-export function sortAssignments<T extends Pick<Assignment, "id" | "deadline" | "title">>(items: T[], sort: AssignmentSort) {
+export function sortAssignments<T extends Pick<Assignment, "id" | "deadline" | "title">>(
+  items: T[],
+  sort: AssignmentSort,
+) {
   if (sort === "default") return items;
   return [...items].sort((a, b) => {
     switch (sort) {
-      case "registered": return b.id - a.id;
+      case "registered":
+        return b.id - a.id;
       case "deadline": {
         const first = deadlineOrder(a.deadline);
         const second = deadlineOrder(b.deadline);
         return first === second ? 0 : first < second ? -1 : 1;
       }
-      case "title-asc": return titleOrder.compare(a.title, b.title);
-      case "title-desc": return titleOrder.compare(b.title, a.title);
+      case "title-asc":
+        return titleOrder.compare(a.title, b.title);
+      case "title-desc":
+        return titleOrder.compare(b.title, a.title);
     }
   });
 }
 
-export function readEditableProblem(key: string): { problem: SavedProblem; index?: number } | undefined {
+export function readEditableProblem(
+  key: string,
+): { problem: SavedProblem; index?: number } | undefined {
   const saved = readSavedProblems();
   if (key.startsWith("saved-")) {
-    const index = saved.findIndex((problem, index) => !problem.sampleId && key === `saved-${index}`);
+    const index = saved.findIndex(
+      (problem, index) => !problem.sampleId && key === `saved-${index}`,
+    );
     return index >= 0 ? { problem: saved[index], index } : undefined;
   }
   const sample = ASSIGNMENTS.find((item) => key === `sample-${item.id}`);
@@ -57,8 +84,12 @@ export function readEditableProblem(key: string): { problem: SavedProblem; index
 
   return {
     problem: {
-      sampleId: sample.id, classId: sample.classId, title: sample.title,
-      ...PROBLEM_DETAILS[sample.id], resubmission: true, trackLeave: false,
+      sampleId: sample.id,
+      classId: sample.classId,
+      title: sample.title,
+      ...PROBLEM_DETAILS[sample.id],
+      resubmission: true,
+      trackLeave: false,
       status: sample.status,
     },
   };
@@ -80,7 +111,7 @@ function readAllProfessorAssignments(): Assignment[] {
     const fromProblem = (problem: SavedProblem) => ({
       classId: problem.classId,
       title: problem.title,
-      due: problem.deadline.replace("T", " ") || "마감일 미설정",
+
       deadline: problem.deadline,
       status: problem.status,
       publishAt: problem.publishAt,
@@ -89,16 +120,22 @@ function readAllProfessorAssignments(): Assignment[] {
       const edited = saved.find((problem) => problem.sampleId === item.id);
       if (!edited) return item;
       const fields = fromProblem(edited);
-      return { ...item, ...fields, due: edited.deadline === PROBLEM_DETAILS[item.id].deadline ? item.due : fields.due };
+      return { ...item, ...fields };
     });
-    const registered = saved.flatMap((problem, index): Assignment[] => problem.sampleId ? [] : [{
-      id: ASSIGNMENTS.length + index + 1,
-      editKey: `saved-${index}`,
-      ...fromProblem(problem),
-      submitted: 0,
-      total: classes.find((course) => course.id === problem.classId)?.count ?? 60,
-      flags: 0,
-    }]);
+    const registered = saved.flatMap((problem, index): Assignment[] =>
+      problem.sampleId
+        ? []
+        : [
+            {
+              id: ASSIGNMENTS.length + index + 1,
+              editKey: `saved-${index}`,
+              ...fromProblem(problem),
+              submitted: 0,
+              total: classes.find((course) => course.id === problem.classId)?.count ?? 60,
+              flags: 0,
+            },
+          ],
+    );
     return [...updatedSamples, ...registered];
   } catch {
     return samples;
@@ -106,33 +143,42 @@ function readAllProfessorAssignments(): Assignment[] {
 }
 
 export function readProfessorAssignments() {
-  return readAllProfessorAssignments().filter((item) => item.status !== "초안");
+  return readAllProfessorAssignments().filter((item) => item.status !== "DRAFT");
 }
 
 export function readProfessorDrafts(courseId: string | null) {
-  return readAllProfessorAssignments().filter((item) =>
-    item.status === "초안" && (!courseId || item.classId === courseId),
+  return readAllProfessorAssignments().filter(
+    (item) => item.status === "DRAFT" && (!courseId || item.classId === courseId),
   );
 }
 
 export function getAssignmentStatus(assignment: Assignment, now: number): AssignmentState {
   const publishAt = Date.parse(assignment.publishAt ?? "");
-  if (assignment.status === "초안" || (assignment.status === "공개 예약" && !(publishAt <= now))) return "예약";
-  return Date.parse(assignment.deadline ?? "") <= now ? "종료" : "공개";
+  if (assignment.status === "DRAFT" || (assignment.status === "SCHEDULED" && !(publishAt <= now)))
+    return "SCHEDULED";
+  return Date.parse(assignment.deadline ?? "") <= now ? "CLOSED" : "PUBLISHED";
 }
 
 export function useAssignmentClock(assignments: Assignment[]) {
   const [now, setNow] = useState(Date.now);
   const nextChangeAt = assignments.reduce((next, assignment) => {
     const status = getAssignmentStatus(assignment, now);
-    const date = status === "공개" ? assignment.deadline : assignment.status === "공개 예약" && status === "예약" ? assignment.publishAt : undefined;
+    const date =
+      status === "PUBLISHED"
+        ? assignment.deadline
+        : assignment.status === "SCHEDULED" && status === "SCHEDULED"
+          ? assignment.publishAt
+          : undefined;
     const time = Date.parse(date ?? "");
     return time > now ? Math.min(next, time) : next;
   }, Infinity);
 
   useEffect(() => {
     if (!Number.isFinite(nextChangeAt)) return;
-    const timeout = window.setTimeout(() => setNow(Date.now()), Math.min(Math.max(nextChangeAt - Date.now(), 0), 2_147_483_647));
+    const timeout = window.setTimeout(
+      () => setNow(Date.now()),
+      Math.min(Math.max(nextChangeAt - Date.now(), 0), 2_147_483_647),
+    );
     return () => window.clearTimeout(timeout);
   }, [nextChangeAt, now]);
 

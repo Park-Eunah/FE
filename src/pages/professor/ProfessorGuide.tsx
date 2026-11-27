@@ -1,9 +1,17 @@
+import { ROUTES } from "../../routes";
 import { Bell, Code2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
-  Badge, Banner, Button, Card, NumberedSteps, PageHeader, VerdictBadge, type Verdict,
+  ProfessorLayout,
+  Badge,
+  Banner,
+  Button,
+  Card,
+  NumberedSteps,
+  PageHeader,
+  VerdictBadge,
+  type Verdict,
 } from "../../components";
-import { ProfessorLayout } from "../../components/layout/ProfessorSidebar";
 
 const STEPS = [
   "수업 관리에서 수업을 만들고 학생에게 참여 코드를 전달해요.",
@@ -28,10 +36,15 @@ export function ProfessorGuide() {
   return (
     <ProfessorLayout>
       <PageHeader
+        responsive
         eyebrow="AUTOTA · HELP CENTER"
         title="교수 이용 가이드"
         description="수업 개설부터 점수 공개까지 AutoTA 사용 방법을 확인하세요."
-        actions={<Button variant="secondary" onClick={() => navigate("/professor")}>내 화면으로 돌아가기</Button>}
+        actions={
+          <Button variant="secondary" onClick={() => navigate(ROUTES.professor)}>
+            내 화면으로 돌아가기
+          </Button>
+        }
       />
 
       <div className="grid gap-6">
@@ -39,12 +52,18 @@ export function ProfessorGuide() {
         <section className="flex items-center justify-between gap-8 rounded-2xl border border-info-border bg-gradient-to-r from-blue-25 to-blue-50 px-10 py-9">
           <div>
             <Badge tone="info">교수 가이드</Badge>
-            <h2 className="mt-5 mb-0 text-[28px] leading-9 font-medium tracking-[-.01em]">AutoTA를 처음 사용하시나요?</h2>
+            <h2 className="mt-5 mb-0 text-[28px] leading-9 font-medium tracking-[-.01em]">
+              AutoTA를 처음 사용하시나요?
+            </h2>
             <p className="mt-2.5 mb-0 text-sm leading-5 text-fg-secondary">
-              아래 핵심 흐름을 따라가면 수업 개설부터 채점 검토, 점수 공개까지 쉽게 이용할 수 있어요.
+              아래 핵심 흐름을 따라가면 수업 개설부터 채점 검토, 점수 공개까지 쉽게 이용할 수
+              있어요.
             </p>
           </div>
-          <span className="grid size-[102px] flex-none place-items-center rounded-3xl bg-surface text-blue-600 shadow-sm" aria-hidden>
+          <span
+            className="grid size-[102px] flex-none place-items-center rounded-3xl bg-surface text-blue-600 shadow-sm"
+            aria-hidden
+          >
             <Code2 size={44} strokeWidth={1.75} />
           </span>
         </section>
@@ -55,8 +74,12 @@ export function ProfessorGuide() {
           </Card>
           <Card title="꼭 알아두세요" subtitle="채점과 권한 관련 주요 안내">
             <div className="grid gap-4">
-              <Banner type="warning">FLAG는 오답이 아니며 점수를 자동으로 깎지 않아요. 교수가 검토해 확정해요.</Banner>
-              <Banner type="info">검토하지 않은 제출은 점수 공개 시점에 자동 채점 점수로 일괄 확정돼요.</Banner>
+              <Banner type="warning">
+                FLAG는 오답이 아니며 점수를 자동으로 깎지 않아요. 교수가 검토해 확정해요.
+              </Banner>
+              <Banner type="info">
+                검토하지 않은 제출은 점수 공개 시점에 자동 채점 점수로 일괄 확정돼요.
+              </Banner>
             </div>
           </Card>
         </div>
@@ -65,11 +88,14 @@ export function ProfessorGuide() {
         <Card title="판정 코드 안내" subtitle="AutoTA에서 사용하는 여섯 가지 판정입니다.">
           <div className="grid grid-cols-3 gap-4">
             {VERDICTS.map((v) => (
-              <div key={v.verdict} className="flex items-center gap-4 rounded-xl border border-border bg-surface px-5 py-5">
+              <div
+                key={v.verdict}
+                className="flex items-center gap-4 rounded-xl border border-border bg-surface px-5 py-5"
+              >
                 <VerdictBadge verdict={v.verdict} chip />
                 <div>
                   <strong className="block text-[15px] leading-5 font-bold">{v.name}</strong>
-                  <span className="block text-xs leading-4 text-fg-secondary">{v.desc}</span>
+                  <span className="block text-[13px] leading-4 text-fg-secondary">{v.desc}</span>
                 </div>
               </div>
             ))}
@@ -78,15 +104,25 @@ export function ProfessorGuide() {
 
         {/* 문의 */}
         <section className="flex items-center gap-5 rounded-2xl border border-border bg-surface px-7 py-7 shadow-sm">
-          <span className="grid size-[52px] flex-none place-items-center rounded-xl bg-[#EFEAFF] text-[#6D4AFF]" aria-hidden>
+          <span
+            className="grid size-[52px] flex-none place-items-center rounded-xl bg-purple-bg text-purple-fg"
+            aria-hidden
+          >
             <Bell size={24} strokeWidth={1.75} />
           </span>
           <div>
             <strong className="block text-base leading-6 font-bold">찾는 내용이 없나요?</strong>
-            <span className="block text-[13px] leading-5 text-fg-secondary">서비스 관리자에게 문의하면 계정과 이용 문제를 도와드려요.</span>
+            <span className="block text-[13px] leading-5 text-fg-secondary">
+              서비스 관리자에게 문의하면 계정과 이용 문제를 도와드려요.
+            </span>
           </div>
           <div className="ml-auto">
-            <Button variant="secondary" onClick={() => navigate("/contact-admin", { state: { from: "/professor/guide" } })}>
+            <Button
+              variant="secondary"
+              onClick={() =>
+                navigate(ROUTES.contactAdmin, { state: { from: ROUTES.professorGuide } })
+              }
+            >
               관리자에게 문의
             </Button>
           </div>

@@ -1,7 +1,9 @@
+import { ROUTES } from "../../routes";
 import { useEffect, useState } from "react";
 import { ChevronRight, ShieldCheck } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
+  ProfessorLayout,
   Badge,
   Button,
   Card,
@@ -9,9 +11,7 @@ import {
   Pagination,
   useToast,
 } from "../../components";
-import { ProfessorLayout } from "../../components/layout/ProfessorSidebar";
-import { linkButtonBase } from "../../components/ui/classes";
-import { NOTICES } from "./mockNotices";
+import { NOTICES } from "../../mocks/professor";
 
 /** 한 페이지에 보여줄 공지 수 */
 const PAGE_SIZE = 4;
@@ -21,15 +21,9 @@ export function ProfessorNotices() {
   const toast = useToast();
   const [params] = useSearchParams();
   // 알림에서 넘어온 ?notice=번호 가 있으면 그 공지를 열고, 그 공지가 있는 페이지로 간다
-  const fromUrl = NOTICES.findIndex(
-    (n) => n.id === Number(params.get("notice")),
-  );
-  const [selectedId, setSelectedId] = useState(
-    NOTICES[fromUrl >= 0 ? fromUrl : 0].id,
-  );
-  const [page, setPage] = useState(
-    Math.floor((fromUrl >= 0 ? fromUrl : 0) / PAGE_SIZE) + 1,
-  );
+  const fromUrl = NOTICES.findIndex((n) => n.id === Number(params.get("notice")));
+  const [selectedId, setSelectedId] = useState(NOTICES[fromUrl >= 0 ? fromUrl : 0].id);
+  const [page, setPage] = useState(Math.floor((fromUrl >= 0 ? fromUrl : 0) / PAGE_SIZE) + 1);
   const selected = NOTICES.find((n) => n.id === selectedId) ?? NOTICES[0];
 
   // 이미 공지 화면에 있을 때 알림을 눌러도 따라가게 한다
@@ -52,11 +46,12 @@ export function ProfessorNotices() {
   return (
     <ProfessorLayout>
       <PageHeader
+        responsive
         eyebrow="PROFESSOR · NOTICES"
         title="전체 공지"
         description="수업, 과제, 채점 및 시스템 관련 안내를 확인하세요."
         actions={
-          <Button variant="secondary" onClick={() => navigate("/professor")}>
+          <Button variant="secondary" onClick={() => navigate(ROUTES.professor)}>
             홈으로 돌아가기
           </Button>
         }
@@ -68,7 +63,7 @@ export function ProfessorNotices() {
           padding="table"
           title="공지 목록"
           action={
-            <span className="mt-1 text-xs leading-4 text-fg-secondary">
+            <span className="mt-1 text-[13px] leading-4 text-fg-secondary">
               총 {NOTICES.length}건
             </span>
           }
@@ -77,7 +72,8 @@ export function ProfessorNotices() {
             {pageRows.map((n) => {
               const active = n.id === selectedId;
               return (
-                <button
+                <Button
+                  variant="link"
                   key={n.id}
                   type="button"
                   aria-current={active ? "true" : undefined}
@@ -85,7 +81,7 @@ export function ProfessorNotices() {
                   className={`box-border flex w-full cursor-pointer items-center gap-4 border-0 border-b border-solid border-border px-6 py-5 text-left last:border-b-0 ${
                     active
                       ? "bg-blue-25 shadow-[inset_3px_0_0_var(--color-blue-600)]"
-                      : "bg-surface hover:bg-[#F9FBFF]"
+                      : "bg-surface hover:bg-blue-25"
                   }`}
                 >
                   <i
@@ -95,9 +91,7 @@ export function ProfessorNotices() {
                   <div className="min-w-0 flex-1">
                     <div className="mb-2 flex items-center justify-between">
                       <Badge tone={n.tone}>{n.tag}</Badge>
-                      <span className="text-xs leading-4 text-fg-secondary">
-                        {n.date}
-                      </span>
+                      <span className="text-[13px] leading-4 text-fg-secondary">{n.date}</span>
                     </div>
                     <strong className="block text-[15px] leading-[22px] font-bold text-fg">
                       {n.title}
@@ -112,7 +106,7 @@ export function ProfessorNotices() {
                     className="flex-none text-fg-body"
                     aria-hidden
                   />
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -137,9 +131,7 @@ export function ProfessorNotices() {
           </header>
 
           <div className="flex-1 px-10 pt-9">
-            <p className="m-0 text-base leading-[30px] text-fg-body">
-              {selected.body}
-            </p>
+            <p className="m-0 text-base leading-[30px] text-fg-body">{selected.body}</p>
 
             {selected.showFlagRule && (
               <div className="mt-9 flex gap-4 rounded-xl border border-info-border bg-blue-25 px-6 py-6">
@@ -154,8 +146,8 @@ export function ProfessorNotices() {
                     FLAG 처리 원칙
                   </strong>
                   <span className="mt-1.5 block text-[13px] leading-5 text-fg-secondary">
-                    FLAG는 허용 범위를 벗어난 요소를 교수에게 알려주는 검토
-                    정보이며 자동 점수에는 영향을 주지 않습니다.
+                    FLAG는 허용 범위를 벗어난 요소를 교수에게 알려주는 검토 정보이며 자동 점수에는
+                    영향을 주지 않습니다.
                   </span>
                 </div>
               </div>
@@ -170,23 +162,21 @@ export function ProfessorNotices() {
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() =>
-                  toast("success", "의견을 남겨 주셔서 감사합니다.")
-                }
+                onClick={() => toast("success", "의견을 남겨 주셔서 감사합니다.")}
               >
                 도움이 됐어요
               </Button>
-              <button
+              <Button
+                variant="link"
                 type="button"
-                className={`${linkButtonBase} text-[13px]`}
                 onClick={() =>
-                  navigate("/contact-admin", {
-                    state: { from: "/professor/notices" },
+                  navigate(ROUTES.contactAdmin, {
+                    state: { from: ROUTES.professorNotices },
                   })
                 }
               >
                 문의하기
-              </button>
+              </Button>
             </div>
           </footer>
         </article>

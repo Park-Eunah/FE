@@ -1,14 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Ban, ListChecks, Plus, X } from "lucide-react";
-import {
-  Badge,
-  Button,
-  Card,
-  EmptyState,
-  FormField,
-  Select,
-  SelectCard,
-} from "../../components";
+import { Badge, Button, Card, EmptyState, FormField, Select, SelectCard } from "../../components";
 import type { InspectionPolicy } from "./savedProblems";
 
 const basicTags = ["print", "len", "range"];
@@ -28,9 +20,7 @@ export function InspectionPolicyEditor({
   const listKey = policy.mode === "deny" ? "deniedTags" : "allowedTags";
   const listLabel = policy.mode === "deny" ? "금지" : "허용";
   const entries = [
-    ...policy[listKey].map(
-      (value) => ({ value, key: listKey, label: listLabel }) as const,
-    ),
+    ...policy[listKey].map((value) => ({ value, key: listKey, label: listLabel }) as const),
     ...policy.requiredTags.map((value) => ({
       value,
       key: "requiredTags" as const,
@@ -48,9 +38,7 @@ export function InspectionPolicyEditor({
     const value = tag.trim();
     const key = required ? "requiredTags" : listKey;
     if (!/^(import|call|syntax):[^\s:]+$/u.test(value)) {
-      setError(
-        "import:heapq, call:sorted, syntax:ListComp 형식으로 입력해주세요.",
-      );
+      setError("import:heapq, call:sorted, syntax:ListComp 형식으로 입력해주세요.");
       return;
     }
     if (policy[key].includes(value)) {
@@ -71,10 +59,7 @@ export function InspectionPolicyEditor({
 
   return (
     <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-start gap-4">
-      <Card
-        title="검사 방식"
-        subtitle="허용 요소를 벗어난 제출을 어떻게 걸러낼지 정해요."
-      >
+      <Card title="검사 방식" subtitle="허용 요소를 벗어난 제출을 어떻게 걸러낼지 정해요.">
         <div role="radiogroup" aria-label="검사 방식" className="grid gap-3.5">
           <SelectCard
             icon={<Ban size={26} strokeWidth={1.75} />}
@@ -92,9 +77,7 @@ export function InspectionPolicyEditor({
           />
         </div>
         <div className="mt-6 border-t border-border pt-5">
-          <p className="m-0 mb-3 text-sm leading-5 text-fg-secondary">
-            기본 허용 요소
-          </p>
+          <p className="m-0 mb-3 text-sm leading-5 text-fg-secondary">기본 허용 요소</p>
           <div className="flex flex-wrap gap-2.5">
             {basicTags.map((value) => (
               <code
@@ -108,10 +91,7 @@ export function InspectionPolicyEditor({
         </div>
       </Card>
 
-      <Card
-        title={`${listLabel}·필수 태그`}
-        subtitle="태그 위반은 FLAG 검토 항목으로 표시됩니다."
-      >
+      <Card title={`${listLabel}·필수 태그`} subtitle="태그 위반은 FLAG 검토 항목으로 표시됩니다.">
         {entries.length > 0 ? (
           <ul className="m-0 mb-6 list-none overflow-hidden rounded-xl border border-border p-0">
             {entries.map(({ value, key, label }) => (
@@ -123,17 +103,12 @@ export function InspectionPolicyEditor({
                   {value}
                 </code>
                 <Badge
-                  tone={
-                    key === "requiredTags"
-                      ? "info"
-                      : key === "deniedTags"
-                        ? "flag"
-                        : "success"
-                  }
+                  tone={key === "requiredTags" ? "info" : key === "deniedTags" ? "flag" : "success"}
                 >
                   {label}
                 </Badge>
-                <button
+                <Button
+                  variant="link"
                   type="button"
                   disabled={disabled}
                   aria-label={`${label} 태그 ${value} 삭제`}
@@ -146,8 +121,8 @@ export function InspectionPolicyEditor({
                     setError("");
                   }}
                 >
-                  <X size={18} strokeWidth={1.75} aria-hidden />
-                </button>
+                  <X size={24} strokeWidth={1.75} aria-hidden />
+                </Button>
               </li>
             ))}
           </ul>
@@ -159,10 +134,7 @@ export function InspectionPolicyEditor({
             />
           </div>
         )}
-        <form
-          onSubmit={addTag}
-          className="grid grid-cols-[minmax(0,1fr)_200px] items-start gap-4"
-        >
+        <form onSubmit={addTag} className="grid grid-cols-[minmax(0,1fr)_200px] items-start gap-4">
           <FormField
             label="태그"
             placeholder="예: call:sorted"
@@ -177,7 +149,7 @@ export function InspectionPolicyEditor({
               <Button
                 type="submit"
                 disabled={disabled}
-                icon={<Plus size={18} strokeWidth={1.75} />}
+                icon={<Plus size={24} strokeWidth={1.75} />}
               >
                 태그 추가
               </Button>

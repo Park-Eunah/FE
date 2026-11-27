@@ -14,6 +14,11 @@
   --color-blue-600: #1d6ff2;
   --color-blue-50: #eaf2ff;
   --color-blue-25: #f4f8ff;
+  --color-brand-highlight: #2f7bff;
+  --color-inverse-muted: #8290b4;
+  --color-inverse-secondary: #b9c6e2;
+  --color-inverse-body: #c7d3ea;
+  --color-avatar-bg: #e9edff;
 
   /* surface */
   --color-bg: #f5f7fb;
@@ -22,6 +27,7 @@
   --color-border: #e5e9f1;
   --color-border-strong: #d5dbe7;
   --color-divider: #eef1f6;
+  --color-gallery-bg: #cdd1e0;
 
   /* 글자색: text-fg / text-fg-body / text-fg-secondary / text-fg-tertiary */
   --color-fg: #182136;
@@ -32,8 +38,10 @@
   /* status */
   --color-success-bg: #e8f7f1;
   --color-success-fg: #168963;
+  --color-success-border: #bfe5d6;
   --color-danger-bg: #fdecee;
   --color-danger-fg: #cb3b4d;
+  --color-danger-border: #f4c6cc;
   --color-flag-bg: #fff3e5;
   --color-flag-fg: #c66a1b;
   --color-flag-border: #f6d9b8;
@@ -54,6 +62,25 @@
   --color-code-chip: #202a42;
   --color-code-text: #d6deef;
   --color-code-no: #536078;
+  --color-editor-red: #ef6b6b;
+  --color-editor-amber: #e7b84f;
+  --color-editor-green: #4bbb77;
+
+  --color-unread-dot: #ef4444;
+  --color-control-hover: #f7f9fc;
+  --color-row-hover: #f9fbff;
+  --color-nav-idle: #b9c2db;
+  --color-nav-footer: #99a6c7;
+  --color-scope-border: #e1e6ff;
+  --color-scope-surface: #f7f8ff;
+  --color-scope-icon: #edebff;
+  --color-code-sample: #f6f7fa;
+  --color-editor-tab: #cdd5e7;
+  --color-editor-line: #ffb040;
+  --color-skeleton-highlight: #f8f9fc;
+  --color-auth-muted: #7f90b5;
+  --color-auth-secondary: #9fb0d3;
+  --background-image-auth-default: linear-gradient(135deg, #f5f7fb 0%, #eef3ff 100%);
 
   /* font */
   --font-sans: "Noto Sans KR", sans-serif;

@@ -12,15 +12,10 @@ export interface PaginationProps {
 
 const btn =
   "box-border grid size-10 cursor-pointer place-items-center rounded-lg border text-sm leading-none font-bold transition-colors focus-visible:shadow-ring focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40";
-const idle = "border-border bg-surface text-fg-body hover:bg-[#F7F9FC]";
+const idle = "border-border bg-surface text-fg-body hover:bg-control-hover";
 const current = "border-transparent bg-blue-600 text-white";
 
-export function Pagination({
-  page,
-  pageCount,
-  onChange,
-  summary,
-}: PaginationProps) {
+export function Pagination({ page, pageCount, onChange, summary }: PaginationProps) {
   const pages = Array.from({ length: pageCount }, (_, i) => i + 1);
   return (
     <nav

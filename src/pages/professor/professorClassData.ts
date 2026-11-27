@@ -1,10 +1,13 @@
-import { CLASSES, DEPARTMENTS, STUDENT_NAMES, type ClassInfo } from "./mockClasses";
+import { CLASSES, DEPARTMENTS, STUDENT_NAMES, type ClassInfo } from "../../mocks/professor";
 
 export type { ClassInfo };
 const storageKey = "autota.professor.classes.v2";
 
 export function getMockClassStudent(classId: string, index: number) {
-  const classIndex = Math.max(0, CLASSES.findIndex((course) => course.id === classId));
+  const classIndex = Math.max(
+    0,
+    CLASSES.findIndex((course) => course.id === classId),
+  );
   const rosterIndex = classIndex * 70 + index;
   return {
     name: STUDENT_NAMES[rosterIndex % STUDENT_NAMES.length],

@@ -1,7 +1,10 @@
+import { ROUTES } from "../../routes";
+import { readResourceDefaults } from "../../resourcePolicy";
 import { useState, type ReactNode } from "react";
 import { ArrowLeft, BookOpen, FlaskConical, Plus, ShieldCheck } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
+  ProfessorLayout,
   Badge,
   Banner,
   Button,
@@ -16,15 +19,10 @@ import {
   Toggle,
   useToast,
 } from "../../components";
-import { ProfessorLayout } from "../../components/layout/ProfessorSidebar";
 import { readEditableProblem, readProfessorDrafts } from "./professorAssignments";
 import { readProfessorClasses } from "./professorClassData";
 import { InspectionPolicyEditor } from "./InspectionPolicyEditor";
-import {
-  saveProblem,
-  type InspectionPolicy,
-  type TestCase,
-} from "./savedProblems";
+import { saveProblem, type InspectionPolicy, type TestCase } from "./savedProblems";
 
 const STEPS = [
   { title: "문제 입력", description: "문제와 실행 조건", icon: BookOpen },
@@ -67,12 +65,8 @@ function PolicyRow({
   return (
     <div className="flex items-center justify-between gap-8 border-b border-border py-5 first:pt-0 last:border-b-0">
       <div>
-        <strong className="block text-base leading-6 font-bold text-fg">
-          {title}
-        </strong>
-        <span className="block text-sm leading-5 text-fg-secondary">
-          {description}
-        </span>
+        <strong className="block text-base leading-6 font-bold text-fg">{title}</strong>
+        <span className="block text-sm leading-5 text-fg-secondary">{description}</span>
       </div>
       <div className="flex-none [&>label]:flex-row-reverse">{children}</div>
     </div>
@@ -96,36 +90,37 @@ function ProblemEditorForm({
     try {
       const key = problemKey ?? draftKey;
       const found = key ? readEditableProblem(key) : undefined;
-      if (draftKey && (found?.problem.status !== "초안" || (courseId && found.problem.classId !== courseId))) return undefined;
+      if (
+        draftKey &&
+        (found?.problem.status !== "DRAFT" || (courseId && found.problem.classId !== courseId))
+      )
+        return undefined;
       return found;
     } catch {
       return undefined;
     }
   });
   const original = entry?.problem;
-  const editingAssignment = Boolean(original && original.status !== "초안");
+  const editingAssignment = Boolean(original && original.status !== "DRAFT");
   const linkedCourseId = original ? original.classId : courseId;
-  const course = readProfessorClasses().find(
-    (item) => item.id === linkedCourseId,
-  );
+  const course = readProfessorClasses().find((item) => item.id === linkedCourseId);
   const returnPath =
     !editingAssignment && course
-      ? `/professor/classes?course=${encodeURIComponent(course.id)}&tab=assignments`
-      : "/professor/problems";
+      ? `${ROUTES.professorClasses}?course=${encodeURIComponent(course.id)}&tab=assignments`
+      : ROUTES.professorProblems;
   const [title, setTitle] = useState(original?.title ?? "");
   const [description, setDescription] = useState(original?.description ?? "");
   const [inputFormat, setInputFormat] = useState(original?.inputFormat ?? "");
-  const [outputFormat, setOutputFormat] = useState(
-    original?.outputFormat ?? "",
+  const [outputFormat, setOutputFormat] = useState(original?.outputFormat ?? "");
+  const [resourceDefaults] = useState(readResourceDefaults);
+  const [timeLimit, setTimeLimit] = useState(
+    original?.timeLimit ?? String(resourceDefaults.timeSeconds),
   );
-  const [timeLimit, setTimeLimit] = useState(original?.timeLimit ?? "1");
   const [memoryLimit, setMemoryLimit] = useState(
-    original?.memoryLimit ?? "128",
+    original?.memoryLimit ?? String(resourceDefaults.memoryMb),
   );
   const [deadline, setDeadline] = useState(original?.deadline ?? "");
-  const [resubmission, setResubmission] = useState(
-    original?.resubmission ?? true,
-  );
+  const [resubmission, setResubmission] = useState(original?.resubmission ?? true);
   const [trackLeave, setTrackLeave] = useState(original?.trackLeave ?? false);
   const [inspectionPolicy, setInspectionPolicy] = useState<InspectionPolicy>(
     original?.inspectionPolicy ?? {
@@ -136,9 +131,7 @@ function ProblemEditorForm({
     },
   );
   const originalPublishAt = Date.parse(original?.publishAt ?? "");
-  const [publishImmediately, setPublishImmediately] = useState(
-    !Number.isFinite(originalPublishAt),
-  );
+  const [publishImmediately, setPublishImmediately] = useState(!Number.isFinite(originalPublishAt));
   const [publishDateTime, setPublishDateTime] = useState(() => {
     if (!Number.isFinite(originalPublishAt)) return "";
     const date = new Date(originalPublishAt);
@@ -147,19 +140,15 @@ function ProblemEditorForm({
       .slice(0, 16);
   });
   const [step, setStep] = useState(editStep);
-  const [testCases, setTestCases] = useState<TestCase[]>(
-    original?.testCases ?? [],
-  );
+  const [testCases, setTestCases] = useState<TestCase[]>(original?.testCases ?? []);
   const [nextCaseId, setNextCaseId] = useState(
-    () =>
-      Math.max(0, ...(original?.testCases ?? []).map((item) => item.id)) + 1,
+    () => Math.max(0, ...(original?.testCases ?? []).map((item) => item.id)) + 1,
   );
   const [saved, setSaved] = useState(false);
   const [showDrafts, setShowDrafts] = useState(false);
   const drafts = showDrafts ? readProfessorDrafts(courseId) : [];
   const [showErrors, setShowErrors] = useState(false);
-  const titleError =
-    showErrors && !title.trim() ? "과제 제목을 입력해주세요" : undefined;
+  const titleError = showErrors && !title.trim() ? "과제 제목을 입력해주세요" : undefined;
   const descriptionError =
     showErrors && !description.trim() ? "과제 설명을 입력해주세요" : undefined;
 
@@ -170,14 +159,9 @@ function ProblemEditorForm({
     ]);
     setNextCaseId((id) => id + 1);
   };
-  const updateTestCase = (
-    id: number,
-    changes: Partial<Omit<TestCase, "id">>,
-  ) => {
+  const updateTestCase = (id: number, changes: Partial<Omit<TestCase, "id">>) => {
     setTestCases((cases) =>
-      cases.map((testCase) =>
-        testCase.id === id ? { ...testCase, ...changes } : testCase,
-      ),
+      cases.map((testCase) => (testCase.id === id ? { ...testCase, ...changes } : testCase)),
     );
   };
   const validateProblem = () => {
@@ -205,19 +189,18 @@ function ProblemEditorForm({
     const updatePublication = editingAssignment || publish;
     const scheduled = updatePublication && !publishImmediately;
     const publicationTime = Date.parse(publishDateTime);
-    const samePublicationTime = editingAssignment &&
-      Math.floor(originalPublishAt / 60_000) ===
-      Math.floor(publicationTime / 60_000);
+    const samePublicationTime =
+      editingAssignment &&
+      Math.floor(originalPublishAt / 60_000) === Math.floor(publicationTime / 60_000);
     if (
       scheduled &&
-      (!Number.isFinite(publicationTime) ||
-        (!samePublicationTime && publicationTime <= Date.now()))
+      (!Number.isFinite(publicationTime) || (!samePublicationTime && publicationTime <= Date.now()))
     ) {
       toast("error", "공개 날짜와 시간을 현재 시각 이후로 설정해주세요.");
       if (step !== 2) setStep(2);
       return;
     }
-    const status = scheduled ? "공개 예약" : updatePublication ? "공개" : "초안";
+    const status = scheduled ? "SCHEDULED" : updatePublication ? "PUBLISHED" : "DRAFT";
     const publishAt = !updatePublication
       ? !publishImmediately && Number.isFinite(publicationTime)
         ? new Date(publicationTime).toISOString()
@@ -249,10 +232,7 @@ function ProblemEditorForm({
         entry?.index,
       );
     } catch {
-      toast(
-        "error",
-        "문제를 저장하지 못했어요. 브라우저 저장 공간을 확인해주세요.",
-      );
+      toast("error", "문제를 저장하지 못했어요. 브라우저 저장 공간을 확인해주세요.");
       return;
     }
     setSaved(true);
@@ -278,9 +258,13 @@ function ProblemEditorForm({
             action={
               <Button
                 variant="secondary"
-                onClick={() => navigate(draftKey
-                  ? `/professor/problems/new${courseId ? `?course=${encodeURIComponent(courseId)}` : ""}`
-                  : "/professor/problems")}
+                onClick={() =>
+                  navigate(
+                    draftKey
+                      ? `${ROUTES.professorProblemNew}${courseId ? `?course=${encodeURIComponent(courseId)}` : ""}`
+                      : ROUTES.professorProblems,
+                  )
+                }
               >
                 {draftKey ? "문제 등록으로 돌아가기" : "문제 목록으로 돌아가기"}
               </Button>
@@ -294,11 +278,8 @@ function ProblemEditorForm({
   return (
     <ProfessorLayout>
       <PageHeader
-        eyebrow={
-          original
-            ? original.title
-            : `${course?.title ?? "PROFESSOR"} · NEW ASSIGNMENT`
-        }
+        responsive
+        eyebrow={original ? original.title : `${course?.title ?? "PROFESSOR"} · NEW ASSIGNMENT`}
         title={editingAssignment ? "문제 수정" : "새 문제 만들기"}
         description={STEP_DESCRIPTION[step]}
         actions={
@@ -306,7 +287,7 @@ function ProblemEditorForm({
             {editingAssignment && (
               <Button
                 variant="secondary"
-                icon={<ArrowLeft size={20} strokeWidth={1.75} />}
+                icon={<ArrowLeft size={24} strokeWidth={1.75} />}
                 onClick={() => navigate(returnPath)}
               >
                 문제 목록으로 돌아가기
@@ -315,7 +296,7 @@ function ProblemEditorForm({
             {!editingAssignment && course && (
               <Button
                 variant="secondary"
-                icon={<ArrowLeft size={20} strokeWidth={1.75} />}
+                icon={<ArrowLeft size={24} strokeWidth={1.75} />}
                 onClick={() => navigate(returnPath)}
               >
                 수업으로 돌아가기
@@ -384,9 +365,7 @@ function ProblemEditorForm({
             <div className="grid gap-5">
               <div className="flex items-center justify-between gap-4 rounded-[14px] border border-border bg-th-bg px-6 py-[18px]">
                 <div>
-                  <strong className="block text-base leading-6">
-                    채점 언어
-                  </strong>
+                  <strong className="block text-base leading-6">채점 언어</strong>
                   <span className="block text-sm leading-5 text-fg-secondary">
                     이 서비스는 Python 과제만 지원합니다.
                   </span>
@@ -410,11 +389,7 @@ function ProblemEditorForm({
                   value={memoryLimit}
                   onChange={(e) => setMemoryLimit(e.target.value)}
                 />
-                <DateTimePicker
-                  label="제출 마감"
-                  value={deadline}
-                  onChange={setDeadline}
-                />
+                <DateTimePicker label="제출 마감" value={deadline} onChange={setDeadline} />
               </div>
             </div>
           </Card>
@@ -441,17 +416,13 @@ function ProblemEditorForm({
                 key={testCase.id}
                 className="m-0 grid gap-5 rounded-2xl border border-border p-6"
               >
-                <legend className="px-2 text-base leading-6 font-bold">
-                  케이스 {index + 1}
-                </legend>
+                <legend className="px-2 text-base leading-6 font-bold">케이스 {index + 1}</legend>
                 <div className="flex items-end justify-between gap-4">
                   <div className="w-[240px]">
                     <Select
                       label="공개 여부"
                       value={testCase.visibility}
-                      onChange={(visibility) =>
-                        updateTestCase(testCase.id, { visibility })
-                      }
+                      onChange={(visibility) => updateTestCase(testCase.id, { visibility })}
                       options={[
                         { value: "private", label: "비공개" },
                         { value: "public", label: "공개" },
@@ -463,9 +434,7 @@ function ProblemEditorForm({
                     size="sm"
                     aria-label={`케이스 ${index + 1} 삭제`}
                     onClick={() =>
-                      setTestCases((cases) =>
-                        cases.filter((item) => item.id !== testCase.id),
-                      )
+                      setTestCases((cases) => cases.filter((item) => item.id !== testCase.id))
                     }
                   >
                     삭제
@@ -477,9 +446,7 @@ function ProblemEditorForm({
                     multiline
                     spellCheck={false}
                     value={testCase.input}
-                    onChange={(e) =>
-                      updateTestCase(testCase.id, { input: e.target.value })
-                    }
+                    onChange={(e) => updateTestCase(testCase.id, { input: e.target.value })}
                   />
                   <FormField
                     label="기대 출력값"
@@ -499,7 +466,7 @@ function ProblemEditorForm({
           <div className={testCases.length ? "mt-5" : undefined}>
             <Button
               variant="secondary"
-              icon={<Plus size={20} strokeWidth={1.75} />}
+              icon={<Plus size={24} strokeWidth={1.75} />}
               onClick={addTestCase}
             >
               테스트케이스 추가
@@ -535,25 +502,14 @@ function ProblemEditorForm({
                 />
               </div>
             )}
-            <PolicyRow
-              title="재제출 허용"
-              description="마감 전까지 여러 번 제출 가능"
-            >
-              <Toggle
-                checked={resubmission}
-                onChange={setResubmission}
-                label="허용"
-              />
+            <PolicyRow title="재제출 허용" description="마감 전까지 여러 번 제출 가능">
+              <Toggle checked={resubmission} onChange={setResubmission} label="허용" />
             </PolicyRow>
             <PolicyRow
               title="화면 이탈 기록 사용"
               description="화면 활성이 풀린 횟수와 벗어난 시간을 참고용으로 기록돼요. 점수에는 반영되지 않아요."
             >
-              <Toggle
-                checked={trackLeave}
-                onChange={setTrackLeave}
-                label="사용"
-              />
+              <Toggle checked={trackLeave} onChange={setTrackLeave} label="사용" />
             </PolicyRow>
             <div className="mt-6">
               <Banner type="info" title="점수 공개 정책">
@@ -566,11 +522,7 @@ function ProblemEditorForm({
 
       <div className="flex justify-end gap-3">
         {step > 0 && (
-          <Button
-            variant="secondary"
-            disabled={saved}
-            onClick={() => setStep(step - 1)}
-          >
+          <Button variant="secondary" disabled={saved} onClick={() => setStep(step - 1)}>
             이전
           </Button>
         )}
@@ -600,19 +552,24 @@ function ProblemEditorForm({
           <ul className="m-0 grid list-none gap-2 p-0">
             {drafts.map((draft) => (
               <li key={draft.editKey}>
-                <Button variant="secondary" onClick={() => {
-                  if (!draft.editKey) return;
-                  const params = new URLSearchParams({ draft: draft.editKey });
-                  if (courseId) params.set("course", courseId);
-                  setShowDrafts(false);
-                  navigate(`/professor/problems/new?${params}`);
-                }}>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    if (!draft.editKey) return;
+                    const params = new URLSearchParams({ draft: draft.editKey });
+                    if (courseId) params.set("course", courseId);
+                    setShowDrafts(false);
+                    navigate(`${ROUTES.professorProblemNew}?${params}`);
+                  }}
+                >
                   {draft.title}
                 </Button>
               </li>
             ))}
           </ul>
-        ) : <EmptyState title="저장된 초안이 없어요" />}
+        ) : (
+          <EmptyState title="저장된 초안이 없어요" />
+        )}
       </Modal>
     </ProfessorLayout>
   );

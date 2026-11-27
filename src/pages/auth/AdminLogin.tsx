@@ -1,14 +1,8 @@
+import { ROUTES } from "../../routes";
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, ShieldCheck } from "lucide-react";
-import {
-  AuthLayout,
-  Banner,
-  Button,
-  Checkbox,
-  FormField,
-} from "../../components";
-import { linkButtonBase } from "../../components/ui/classes";
+import { AuthLayout, Banner, Button, Checkbox, FormField } from "../../components";
 
 export function AdminLogin() {
   const navigate = useNavigate();
@@ -21,19 +15,18 @@ export function AdminLogin() {
     e.preventDefault();
     const next: typeof error = {};
     if (!email.trim()) next.email = "관리자 이메일을 입력하세요";
-    else if (!/^\S+@\S+\.\S+$/.test(email))
-      next.email = "올바른 이메일 형식을 입력하세요";
+    else if (!/^\S+@\S+\.\S+$/.test(email)) next.email = "올바른 이메일 형식을 입력하세요";
     if (!password) next.password = "관리자 비밀번호를 입력하세요";
     setError(next);
     if (Object.keys(next).length === 0) {
       // TODO: 관리자 로그인 API 연결 (email, password, trust 전달). 연결 전에는 관리자 화면으로 바로 이동
-      navigate("/admin");
+      navigate(ROUTES.admin);
     }
   };
 
   return (
     <AuthLayout onSubmit={submit}>
-      <div className="text-xs leading-4 font-bold tracking-[.18em] text-blue-600 uppercase">
+      <div className="text-[13px] leading-4 font-bold tracking-[.18em] text-blue-600 uppercase">
         System administration
       </div>
       <h2 className="mt-2 mb-0 text-[40px] leading-[48px] font-medium tracking-[-.02em]">
@@ -63,7 +56,7 @@ export function AdminLogin() {
           type="email"
           autoComplete="username"
           placeholder="admin@university.ac.kr"
-          icon={<ShieldCheck size={22} strokeWidth={1.75} />}
+          icon={<ShieldCheck size={24} strokeWidth={1.75} />}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           error={error.email}
@@ -73,7 +66,7 @@ export function AdminLogin() {
           type="password"
           autoComplete="current-password"
           placeholder="비밀번호를 입력하세요"
-          icon={<ShieldCheck size={22} strokeWidth={1.75} />}
+          icon={<ShieldCheck size={24} strokeWidth={1.75} />}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           error={error.password}
@@ -81,53 +74,46 @@ export function AdminLogin() {
       </div>
 
       <div className="mt-3.5 mb-5 flex items-center justify-between">
-        <Checkbox
-          checked={trust}
-          onChange={setTrust}
-          label="이 기기 신뢰하기"
-        />
-        <button
+        <Checkbox checked={trust} onChange={setTrust} label="이 기기 신뢰하기" />
+        <Button
+          variant="link"
           type="button"
-          className={`${linkButtonBase} text-sm`}
-          onClick={() =>
-            navigate("/forgot-password", { state: { role: "admin" } })
-          }
+          onClick={() => navigate(ROUTES.forgotPassword, { state: { role: "admin" } })}
         >
           비밀번호 찾기
-        </button>
+        </Button>
       </div>
 
       <div className="[&>button]:w-full">
         <Button type="submit" size="lg">
           관리자 로그인
-          <ArrowRight size={20} strokeWidth={1.75} />
+          <ArrowRight size={24} strokeWidth={1.75} />
         </Button>
       </div>
 
       <p className="mt-4 mb-0 flex items-center justify-center gap-2 text-[13px] leading-5 text-fg-secondary">
-        <ShieldCheck size={16} strokeWidth={1.75} aria-hidden />
+        <ShieldCheck size={24} strokeWidth={1.75} aria-hidden />
         권한이 부여된 관리자 이메일만 접속할 수 있어요.
       </p>
       <p className="mt-3 mb-0 text-center text-[13px] leading-5 text-fg-secondary">
         로그인에 문제가 있나요?{" "}
-        <button
+        <Button
+          variant="link"
           type="button"
-          className={`${linkButtonBase} text-[13px]`}
-          onClick={() =>
-            navigate("/contact-admin", { state: { from: "/admin/login" } })
-          }
+          onClick={() => navigate(ROUTES.contactAdmin, { state: { from: ROUTES.adminLogin } })}
         >
           관리자에게 문의
-        </button>
+        </Button>
       </p>
       <p className="mt-1.5 mb-0 text-center">
-        <button
+        <Button
+          variant="link"
           type="button"
-          className="cursor-pointer border-0 bg-transparent p-0 text-xs leading-4 text-fg-secondary underline underline-offset-2"
-          onClick={() => navigate("/login")}
+          className="cursor-pointer border-0 bg-transparent p-0 text-[13px] leading-4 text-fg-secondary underline underline-offset-2"
+          onClick={() => navigate(ROUTES.login)}
         >
           학생·교수 로그인으로 돌아가기
-        </button>
+        </Button>
       </p>
     </AuthLayout>
   );

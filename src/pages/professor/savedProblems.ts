@@ -5,7 +5,7 @@ export type TestCase = {
   visibility: "public" | "private";
 };
 
-export type ProblemStatus = "공개" | "초안" | "공개 예약";
+export type ProblemStatus = "PUBLISHED" | "DRAFT" | "SCHEDULED";
 
 export type InspectionPolicy = {
   mode: "deny" | "allow";
@@ -35,7 +35,18 @@ export type SavedProblem = {
 const storageKey = "autota.professor.problems";
 
 export function readSavedProblems(): SavedProblem[] {
-  return JSON.parse(window.localStorage.getItem(storageKey) ?? "[]");
+  const legacyStatuses = { 공개: "PUBLISHED", 초안: "DRAFT", "공개 예약": "SCHEDULED" } as const;
+  type StoredProblem = Omit<SavedProblem, "status"> & {
+    status: ProblemStatus | keyof typeof legacyStatuses;
+  };
+  const problems: StoredProblem[] = JSON.parse(window.localStorage.getItem(storageKey) ?? "[]");
+  return problems.map(({ status, ...problem }) => ({
+    ...problem,
+    status:
+      status in legacyStatuses
+        ? legacyStatuses[status as keyof typeof legacyStatuses]
+        : (status as ProblemStatus),
+  }));
 }
 
 export function saveProblem(problem: SavedProblem, existingIndex?: number) {

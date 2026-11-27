@@ -1,3 +1,4 @@
+import { ROUTES } from "../../routes";
 import type { ReactNode } from "react";
 import { Navigate, Outlet } from "react-router-dom";
 import type { Role } from "./Sidebar";
@@ -10,7 +11,8 @@ export interface ProtectedRouteProps {
   forbidden?: ReactNode;
 }
 export function ProtectedRoute({ role, allowedRoles, forbidden }: ProtectedRouteProps) {
-  if (!role) return <Navigate to="/login" replace />;
-  if (!allowedRoles.includes(role)) return <>{forbidden ?? <Navigate to="/" replace />}</>;
+  if (!role) return <Navigate to={ROUTES.login} replace />;
+  if (!allowedRoles.includes(role))
+    return <>{forbidden ?? <Navigate to={ROUTES.root} replace />}</>;
   return <Outlet />;
 }

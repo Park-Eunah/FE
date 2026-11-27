@@ -8,14 +8,25 @@ export interface ListRowProps {
   subtitle?: string;
   trailing?: ReactNode;
   preserveTrailingWidth?: boolean;
+  keyboardNavigation?: boolean;
   onClick?: () => void;
   /** 목록에서 지금 보고 있는 줄 */
   selected?: boolean;
 }
 
-const row = "flex items-center gap-5 border-b border-border bg-surface px-[30px] py-[22px] last:border-b-0";
+const row =
+  "flex items-center gap-5 border-b border-border bg-surface px-[30px] py-[22px] last:border-b-0";
 
-export function ListRow({ leading, title, subtitle, trailing, preserveTrailingWidth, onClick, selected }: ListRowProps) {
+export function ListRow({
+  leading,
+  title,
+  subtitle,
+  trailing,
+  preserveTrailingWidth,
+  onClick,
+  keyboardNavigation,
+  selected,
+}: ListRowProps) {
   const body = (
     <>
       {leading}
@@ -32,7 +43,24 @@ export function ListRow({ leading, title, subtitle, trailing, preserveTrailingWi
     </>
   );
   return onClick ? (
-    <div className={`${row} cursor-pointer hover:bg-[#F9FBFF]${selected ? " bg-blue-50 shadow-[inset_4px_0_0_var(--color-blue-600)]" : ""}`} role="button" tabIndex={0} aria-pressed={selected} onClick={onClick} onKeyDown={(e) => e.key === "Enter" && onClick()}>{body}</div>
+    <div
+      className={`${row} cursor-pointer hover:bg-row-hover${selected ? " bg-blue-50 shadow-[inset_4px_0_0_var(--color-blue-600)]" : ""}`}
+      role="button"
+      tabIndex={0}
+      aria-pressed={selected}
+      onClick={onClick}
+      onKeyDown={(event) => {
+        if (
+          event.target === event.currentTarget &&
+          (event.key === "Enter" || (keyboardNavigation && event.key === " "))
+        ) {
+          event.preventDefault();
+          onClick();
+        }
+      }}
+    >
+      {body}
+    </div>
   ) : (
     <div className={row}>{body}</div>
   );

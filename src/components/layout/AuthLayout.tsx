@@ -2,30 +2,24 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Check, ShieldCheck } from "lucide-react";
 import { Logo } from "./Logo";
 
-/* ---------- AuthLayout (로그인 계열 화면 공통 틀) ----------
- * 왼쪽 서비스 소개 + 오른쪽 카드(form). 학생/교수 로그인, 시스템 관리자 로그인에서 같이 쓴다.
- * 기준 화면(1600 x 860)으로 디자인하고, 브라우저 창 크기에 맞춰 통째로 확대/축소해서
- * 어떤 화면에서도 스크롤 없이 한 화면에 들어오게 한다. */
 const REF_W = 1600;
 const REF_H = 860;
 
-function useFit() {
+function useFit(responsive: boolean) {
   const calc = () => {
     const s = Math.min(
-      Math.max(
-        Math.min(window.innerWidth / REF_W, window.innerHeight / REF_H),
-        0.55,
-      ),
+      Math.max(Math.min(window.innerWidth / REF_W, window.innerHeight / REF_H), 0.55),
       1.4,
     );
     return { s, w: window.innerWidth / s, h: window.innerHeight / s };
   };
   const [fit, setFit] = useState(calc);
   useEffect(() => {
+    if (responsive) return;
     const on = () => setFit(calc());
     window.addEventListener("resize", on);
     return () => window.removeEventListener("resize", on);
-  }, []);
+  }, [responsive]);
   return fit;
 }
 
@@ -45,34 +39,41 @@ const FEATURES = [
 export interface AuthLayoutProps {
   /** 카드 안에 들어갈 내용 */
   children: ReactNode;
+  responsive?: boolean;
   onSubmit?: (e: FormEvent<HTMLFormElement>) => void;
 }
 
-export function AuthLayout({ children, onSubmit }: AuthLayoutProps) {
-  const fit = useFit();
+export function AuthLayout({ children, onSubmit, responsive = false }: AuthLayoutProps) {
+  const fit = useFit(responsive);
   return (
-    <div className="fixed inset-0 overflow-hidden bg-bg">
+    <div className={responsive ? "bg-bg" : "fixed inset-0 overflow-hidden bg-bg"}>
       <div
-        className="grid grid-cols-[40%_1fr] overflow-hidden"
-        style={{ zoom: fit.s, width: fit.w, height: fit.h }}
+        className={
+          responsive
+            ? "grid min-h-screen grid-cols-[40%_1fr] max-[1000px]:grid-cols-1"
+            : "grid grid-cols-[40%_1fr] overflow-hidden"
+        }
+        style={responsive ? undefined : { zoom: fit.s, width: fit.w, height: fit.h }}
       >
         {/* ---------- 왼쪽: 서비스 소개 ---------- */}
-        <aside className="relative flex flex-col justify-between overflow-hidden bg-navy-900 px-16 py-12 text-white">
+        <aside
+          className={`relative flex flex-col justify-between overflow-hidden bg-navy-900 px-16 py-12 text-white ${responsive ? "max-[1000px]:hidden" : ""}`}
+        >
           <div
             aria-hidden
-            className="pointer-events-none absolute top-[12%] -left-[18%] size-[130%] rounded-full border border-[rgba(255,255,255,.05)]"
+            className="pointer-events-none absolute top-[12%] -left-[18%] size-[130%] rounded-full border border-white/5"
           />
           <div
             aria-hidden
-            className="pointer-events-none absolute top-[28%] left-[10%] size-[95%] rounded-full bg-[rgba(255,255,255,.035)]"
+            className="pointer-events-none absolute top-[28%] left-[10%] size-[95%] rounded-full bg-white/[.035]"
           />
 
           <div className="relative -ml-4">
-            <Logo />
+            <Logo responsive={responsive} />
           </div>
 
           <div className="relative">
-            <div className="mb-5 text-[13px] leading-[18px] font-bold tracking-[.2em] text-[#2F7BFF] uppercase">
+            <div className="mb-5 text-[13px] leading-[18px] font-bold tracking-[.2em] text-brand-highlight uppercase">
               Python Assignment Platform
             </div>
             <h1 className="m-0 text-[52px] leading-[1.35] font-medium tracking-[-.02em]">
@@ -80,9 +81,9 @@ export function AuthLayout({ children, onSubmit }: AuthLayoutProps) {
               <br />
               학습 과정을 평가합니다.
             </h1>
-            <p className="mt-6 mb-0 max-w-[520px] break-keep text-lg leading-[1.7] text-[#C7D3EA]">
-              프로그래밍 교과목을 위한 Python 과제 제출, 자동 채점, 교수 검토
-              서비스를 한 곳에서 이용하세요.
+            <p className="mt-6 mb-0 max-w-[520px] break-keep text-lg leading-[1.7] text-inverse-body">
+              프로그래밍 교과목을 위한 Python 과제 제출, 자동 채점, 교수 검토 서비스를 한 곳에서
+              이용하세요.
             </p>
           </div>
 
@@ -93,32 +94,32 @@ export function AuthLayout({ children, onSubmit }: AuthLayoutProps) {
                   <Icon
                     size={22}
                     strokeWidth={1.75}
-                    className="mt-0.5 flex-none text-[#2F7BFF]"
+                    className="mt-0.5 flex-none text-brand-highlight"
                     aria-hidden
                   />
                   <div>
-                    <strong className="block text-lg leading-7 font-bold">
-                      {title}
-                    </strong>
-                    <span className="block text-sm leading-5 text-[#9FB0D3]">
-                      {text}
-                    </span>
+                    <strong className="block text-lg leading-7 font-bold">{title}</strong>
+                    <span className="block text-sm leading-5 text-auth-secondary">{text}</span>
                   </div>
                 </li>
               ))}
             </ul>
-            <div className="mt-8 text-xs leading-4 text-[#7F90B5]">
+            <div
+              className={`mt-8 leading-4 text-auth-muted ${responsive ? "text-[13px]" : "text-xs"}`}
+            >
               © 2025 AutoTA · Automated Teaching Assistant
             </div>
           </div>
         </aside>
 
         {/* ---------- 오른쪽: 카드 ---------- */}
-        <main className="grid place-items-center overflow-hidden bg-[linear-gradient(135deg,#F5F7FB_0%,#EEF3FF_100%)] p-10">
+        <main
+          className={`grid place-items-center overflow-hidden p-10 ${responsive ? "bg-linear-to-br from-bg to-blue-50 max-[1000px]:p-4" : "bg-(image:--background-image-auth-default)"}`}
+        >
           <form
             onSubmit={onSubmit}
             noValidate
-            className="box-border w-full max-w-[800px] rounded-[28px] border border-border bg-surface px-14 py-9 shadow-md"
+            className={`box-border w-full max-w-[800px] rounded-[28px] border border-border bg-surface px-14 py-9 shadow-md ${responsive ? "max-[1000px]:px-6" : ""}`}
           >
             {children}
           </form>

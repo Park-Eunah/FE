@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { REVIEWS } from "./mockReviews";
+import { REVIEWS } from "../../mocks/professor";
 
 type ReleaseState = { released?: boolean; scheduledAt?: string };
 type ReviewStatus = "held" | "confirmed";
@@ -13,7 +13,9 @@ const listeners = new Set<() => void>();
 
 function subscribe(listener: () => void) {
   listeners.add(listener);
-  return () => { listeners.delete(listener); };
+  return () => {
+    listeners.delete(listener);
+  };
 }
 
 export function useProfessorMockState() {
@@ -35,9 +37,11 @@ export function isScoreReleased(id: number, state: typeof snapshot) {
 }
 
 export function getPendingReviews(state: typeof snapshot) {
-  return REVIEWS.filter((review) =>
-    !state.resolved[review.id] &&
-    !Object.entries(state.releases).some(([id, release]) =>
-      release.released && review.assignmentKey === `sample-${id}`),
+  return REVIEWS.filter(
+    (review) =>
+      !state.resolved[review.id] &&
+      !Object.entries(state.releases).some(
+        ([id, release]) => release.released && review.assignmentKey === `sample-${id}`,
+      ),
   );
 }

@@ -1,10 +1,8 @@
+import { ASSIGNMENT_STATUS_LABEL } from "./professorAssignments";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Badge, Button, Card, EmptyState, PageHeader } from "../../components";
-import {
-  readEditableProblem,
-  type AssignmentView,
-} from "./professorAssignments";
+import { readEditableProblem, type AssignmentView } from "./professorAssignments";
 import { ClassAssignmentSubmissions } from "./ClassAssignmentSubmissions";
 
 const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
@@ -21,9 +19,7 @@ function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <dt className="text-sm leading-5 text-fg-secondary">{label}</dt>
-      <dd className="m-0 mt-1 text-base leading-6 font-bold text-fg">
-        {value}
-      </dd>
+      <dd className="m-0 mt-1 text-base leading-6 font-bold text-fg">{value}</dd>
     </div>
   );
 }
@@ -49,9 +45,7 @@ export function ClassAssignmentDetails({
   const navigate = useNavigate();
   let problem;
   try {
-    problem = assignment?.editKey
-      ? readEditableProblem(assignment.editKey)?.problem
-      : undefined;
+    problem = assignment?.editKey ? readEditableProblem(assignment.editKey)?.problem : undefined;
   } catch {
     problem = undefined;
   }
@@ -59,13 +53,14 @@ export function ClassAssignmentDetails({
   return (
     <>
       <PageHeader
+        responsive
         eyebrow="과제 상세"
         title={problem?.title ?? "과제를 찾을 수 없어요"}
         actions={
           <Button
             variant="secondary"
             size="sm"
-            icon={<ArrowLeft size={18} strokeWidth={1.75} aria-hidden />}
+            icon={<ArrowLeft size={24} strokeWidth={1.75} aria-hidden />}
             onClick={() => navigate(listPath)}
           >
             과제 목록
@@ -91,70 +86,42 @@ export function ClassAssignmentDetails({
               />
               <Fact
                 label="메모리 제한"
-                value={
-                  problem.memoryLimit ? `${problem.memoryLimit} MB` : "미설정"
-                }
+                value={problem.memoryLimit ? `${problem.memoryLimit} MB` : "미설정"}
               />
               <Fact label="제출 마감" value={formatDate(problem.deadline)} />
-              <Fact
-                label="재제출"
-                value={problem.resubmission ? "허용" : "허용 안 함"}
-              />
-              <Fact
-                label="화면 이탈 기록"
-                value={problem.trackLeave ? "사용" : "사용 안 함"}
-              />
-              <Fact label="문제 상태" value={assignment.status} />
-              {problem.status === "초안" ? (
+              <Fact label="재제출" value={problem.resubmission ? "허용" : "허용 안 함"} />
+              <Fact label="화면 이탈 기록" value={problem.trackLeave ? "사용" : "사용 안 함"} />
+              <Fact label="문제 상태" value={ASSIGNMENT_STATUS_LABEL[assignment.status]} />
+              {problem.status === "DRAFT" ? (
                 <Fact label="공개 설정" value="초안 저장됨" />
               ) : problem.publishAt ? (
-                <Fact
-                  label="설정된 공개 일시"
-                  value={formatDate(problem.publishAt)}
-                />
+                <Fact label="설정된 공개 일시" value={formatDate(problem.publishAt)} />
               ) : null}
             </dl>
           </Card>
           <Card
             title="테스트케이스"
-            action={
-              <Badge tone="info">{problem.testCases?.length ?? 0}개</Badge>
-            }
+            action={<Badge tone="info">{problem.testCases?.length ?? 0}개</Badge>}
           >
             {problem.testCases?.length ? (
               <ul className="m-0 grid list-none gap-4 p-0">
                 {problem.testCases.map((testCase, index) => (
-                  <li
-                    key={testCase.id}
-                    className="rounded-xl border border-border p-5"
-                  >
+                  <li key={testCase.id} className="rounded-xl border border-border p-5">
                     <div className="mb-3 flex items-center justify-between gap-3">
-                      <strong className="text-base leading-6">
-                        케이스 {index + 1}
-                      </strong>
-                      <Badge
-                        tone={
-                          testCase.visibility === "public"
-                            ? "success"
-                            : "neutral"
-                        }
-                      >
+                      <strong className="text-base leading-6">케이스 {index + 1}</strong>
+                      <Badge tone={testCase.visibility === "public" ? "success" : "neutral"}>
                         {testCase.visibility === "public" ? "공개" : "비공개"}
                       </Badge>
                     </div>
                     <dl className="m-0 grid min-w-0 grid-cols-2 gap-4">
                       <div className="min-w-0">
-                        <dt className="text-sm leading-5 text-fg-secondary">
-                          입력값
-                        </dt>
+                        <dt className="text-sm leading-5 text-fg-secondary">입력값</dt>
                         <dd className="m-0 mt-1.5 overflow-auto rounded-lg bg-bg p-3 font-mono text-[15px] leading-6 whitespace-pre-wrap [overflow-wrap:anywhere]">
                           {testCase.input || "—"}
                         </dd>
                       </div>
                       <div className="min-w-0">
-                        <dt className="text-sm leading-5 text-fg-secondary">
-                          기대 출력값
-                        </dt>
+                        <dt className="text-sm leading-5 text-fg-secondary">기대 출력값</dt>
                         <dd className="m-0 mt-1.5 overflow-auto rounded-lg bg-bg p-3 font-mono text-[15px] leading-6 whitespace-pre-wrap [overflow-wrap:anywhere]">
                           {testCase.expectedOutput || "—"}
                         </dd>
@@ -167,11 +134,8 @@ export function ClassAssignmentDetails({
               <EmptyState title="등록된 테스트케이스가 없어요" />
             )}
           </Card>
-          {assignment.status !== "예약" && (
-            <ClassAssignmentSubmissions
-              key={assignment.editKey}
-              assignment={assignment}
-            />
+          {assignment.status !== "SCHEDULED" && (
+            <ClassAssignmentSubmissions key={assignment.editKey} assignment={assignment} />
           )}
         </>
       ) : (

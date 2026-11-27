@@ -11,12 +11,19 @@ export interface NavItemProps {
   variant?: "default" | "foot";
   onClick?: () => void;
 }
-export function NavItem({ icon, label, badge, active, variant = "default", onClick }: NavItemProps) {
+export function NavItem({
+  icon,
+  label,
+  badge,
+  active,
+  variant = "default",
+  onClick,
+}: NavItemProps) {
   const foot = variant === "foot";
   const size = foot ? "h-[84px] rounded-none px-4" : "h-[62px] rounded-lg px-5";
   const color = active
     ? "bg-blue-600 font-medium text-white"
-    : `bg-transparent ${foot ? "text-[#99A6C7]" : "text-[#B9C2DB]"} hover:bg-[rgba(255,255,255,.06)] hover:text-white`;
+    : `bg-transparent ${foot ? "text-nav-footer" : "text-nav-idle"} hover:bg-white/6 hover:text-white`;
   return (
     <button
       type="button"
@@ -27,7 +34,9 @@ export function NavItem({ icon, label, badge, active, variant = "default", onCli
       <span className="inline-flex size-6">{icon}</span>
       {label}
       {badge ? (
-        <span className="ml-auto box-border grid h-8 min-w-8 place-items-center rounded-full bg-flag-fg px-2 text-sm leading-none font-bold text-white">{badge}</span>
+        <span className="ml-auto box-border grid h-8 min-w-8 place-items-center rounded-full bg-flag-fg px-2 text-sm leading-none font-bold text-white">
+          {badge}
+        </span>
       ) : null}
     </button>
   );
