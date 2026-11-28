@@ -1,5 +1,8 @@
 import type { Tone } from "../components";
 import type { ProblemStatus, TestCase } from "../pages/professor/savedProblems";
+import type { MyCoursesResponse } from "../pages/professor/professorCoursesApi";
+import type { CourseAssignmentsResponse } from "../pages/professor/professorCourseAssignmentsApi";
+import type { ProfessorProblemDetails } from "../pages/professor/professorProblemDetailsApi";
 
 export type Assignment = {
   id: number;
@@ -262,7 +265,6 @@ export type ClassInfo = {
   open: boolean;
 };
 
-/* TODO: 내 수업 목록 API 연결 후 서버 응답으로 교체 */
 export const CLASSES: ClassInfo[] = [
   {
     id: "data-structures",
@@ -329,6 +331,95 @@ export const CLASSES: ClassInfo[] = [
     open: true,
   },
 ];
+
+// Keep demo links and assignments tied to their existing course IDs.
+export const DEMO_COURSE_IDS = new Map<number, string>([
+  [3, "data-structures"],
+  [4, "algorithms"],
+  [5, "python"],
+  [6, "operating-systems"],
+  [7, "databases"],
+  [8, "networks"],
+  [9, "software-engineering"],
+  [10, "ai-basics"],
+]);
+
+export const DEMO_COURSE_ASSIGNMENTS = new Map(
+  Array.from(DEMO_COURSE_IDS, ([courseId, demoId]) => {
+    const response: CourseAssignmentsResponse = {
+      success: true,
+      code: "COMMON-200",
+      message: "요청에 성공했습니다.",
+      data: ASSIGNMENTS.filter((item) => item.classId === demoId && item.status !== "DRAFT").map(
+        (item) => ({
+          id: item.id,
+          title: item.title,
+          dueAt: PROBLEM_DETAILS[item.id].deadline,
+          studentCount: item.total,
+          problems: [
+            {
+              id: item.id,
+              title: item.title,
+              resubmitAllowed: true,
+              testcaseCount: PROBLEM_DETAILS[item.id].testCases.length,
+              submittedStudentCount: item.submitted,
+              mySubmission: null,
+            },
+          ],
+        }),
+      ),
+    };
+    return [courseId, response] as const;
+  }),
+);
+
+export const MY_COURSES_RESPONSE: MyCoursesResponse = {
+  success: true,
+  code: "COMMON-200",
+  message: "요청에 성공했습니다.",
+  data: Array.from(DEMO_COURSE_IDS, ([id, demoId]) => {
+    const course = CLASSES.find((item) => item.id === demoId)!;
+    return {
+      id,
+      name: course.title,
+      semester: course.term === "2025년 봄학기" ? "2025-1" : "2024-2",
+      professorName: "박서연",
+      joinCode: course.code,
+      studentCount: course.count,
+      assignmentCount: DEMO_COURSE_ASSIGNMENTS.get(id)?.data.length ?? 0,
+    };
+  }),
+};
+
+export const DEMO_PROBLEM_DETAILS = new Map(
+  Array.from(DEMO_COURSE_ASSIGNMENTS).flatMap(([courseId, response]) =>
+    response.data.flatMap((assignment) =>
+      assignment.problems.map(({ id, title, resubmitAllowed }) => {
+        const source = PROBLEM_DETAILS[id];
+        const details: ProfessorProblemDetails = {
+          id,
+          assignmentId: assignment.id,
+          courseId,
+          title,
+          description: source.description,
+          inputFormat: source.inputFormat,
+          outputFormat: source.outputFormat,
+          timeLimitMs: Number(source.timeLimit) * 1000,
+          memoryLimitMb: Number(source.memoryLimit),
+          resubmitAllowed,
+          dueAt: assignment.dueAt,
+          testcases: source.testCases.map((testCase, index) => ({
+            no: index + 1,
+            input: testCase.input,
+            expectedOutput: testCase.expectedOutput,
+            isPublic: testCase.visibility === "public",
+          })),
+        };
+        return [id, details] as const;
+      }),
+    ),
+  ),
+);
 
 /* TODO: 수강생 목록 API 연결 후 서버 응답으로 교체 */
 export const STUDENT_NAMES = [

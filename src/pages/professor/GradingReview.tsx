@@ -162,7 +162,28 @@ export function GradingReview() {
 
       {assignment && (
         <>
-          <Card title={assignment.title} subtitle="문제 정보">
+          <Card
+            title={assignment.title}
+            subtitle="문제 정보"
+            action={
+              assignmentKey && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    const params = new URLSearchParams({ assignment: assignmentKey });
+                    if (courseId && courseId === assignment.classId) params.set("course", courseId);
+                    const path = params.has("course")
+                      ? ROUTES.professorClasses
+                      : ROUTES.professorProblems;
+                    navigate(`${path}?${params}`);
+                  }}
+                >
+                  문제 상세
+                </Button>
+              )
+            }
+          >
             <p className="m-0 mb-5 text-base leading-[26px] whitespace-pre-wrap text-fg-body [overflow-wrap:anywhere]">
               {reviewProblem?.description || "등록된 문제 설명이 없어요."}
             </p>

@@ -1,6 +1,6 @@
 import { ROUTES } from "../../routes";
 import { readResourceDefaults } from "../../resourcePolicy";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft, BookOpen, FlaskConical, Plus, ShieldCheck } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
@@ -9,8 +9,9 @@ import {
   Banner,
   Button,
   Card,
-  DateTimePicker,
+  ConfirmModal,
   EmptyState,
+  ErrorMessage,
   FormField,
   Modal,
   PageHeader,
@@ -19,10 +20,23 @@ import {
   Toggle,
   useToast,
 } from "../../components";
-import { readEditableProblem, readProfessorDrafts } from "./professorAssignments";
+import {
+  formatAssignmentDeadline,
+  readEditableProblem,
+  readProfessorDrafts,
+} from "./professorAssignments";
 import { readProfessorClasses } from "./professorClassData";
 import { InspectionPolicyEditor } from "./InspectionPolicyEditor";
 import { saveProblem, type InspectionPolicy, type TestCase } from "./savedProblems";
+import { ApiError, errorMessage } from "../../api/client";
+import { DEMO_COURSE_IDS } from "../../mocks/professor";
+import { fetchMyCourses, type Course } from "./professorCoursesApi";
+import { fetchCourseAssignments, type CourseAssignment } from "./professorCourseAssignmentsApi";
+import {
+  registerProfessorProblem,
+  validateProblemRegistration,
+  type RegisterProblemBody,
+} from "./professorProblemRegistrationApi";
 
 const STEPS = [
   { title: "문제 입력", description: "문제와 실행 조건", icon: BookOpen },
@@ -41,14 +55,16 @@ export function ProblemEditor() {
   const section = searchParams.get("section");
   const editStep = section === "cases" ? 1 : section === "policy" ? 2 : 0;
   const courseId = searchParams.get("course");
+  const assignmentId = searchParams.get("assignmentId");
   const draftKey = problemKey ? null : searchParams.get("draft");
   return (
     <ProblemEditorForm
-      key={JSON.stringify([problemKey, editStep, courseId, draftKey])}
+      key={JSON.stringify([problemKey, editStep, courseId, assignmentId, draftKey])}
       problemKey={problemKey}
       draftKey={draftKey}
       editStep={editStep}
       courseId={courseId}
+      assignmentId={assignmentId}
     />
   );
 }
@@ -78,11 +94,13 @@ function ProblemEditorForm({
   draftKey,
   editStep,
   courseId,
+  assignmentId,
 }: {
   problemKey?: string;
   draftKey: string | null;
   editStep: number;
   courseId: string | null;
+  assignmentId: string | null;
 }) {
   const navigate = useNavigate();
   const toast = useToast();
@@ -119,7 +137,6 @@ function ProblemEditorForm({
   const [memoryLimit, setMemoryLimit] = useState(
     original?.memoryLimit ?? String(resourceDefaults.memoryMb),
   );
-  const [deadline, setDeadline] = useState(original?.deadline ?? "");
   const [resubmission, setResubmission] = useState(original?.resubmission ?? true);
   const [trackLeave, setTrackLeave] = useState(original?.trackLeave ?? false);
   const [inspectionPolicy, setInspectionPolicy] = useState<InspectionPolicy>(
@@ -130,15 +147,6 @@ function ProblemEditorForm({
       requiredTags: [],
     },
   );
-  const originalPublishAt = Date.parse(original?.publishAt ?? "");
-  const [publishImmediately, setPublishImmediately] = useState(!Number.isFinite(originalPublishAt));
-  const [publishDateTime, setPublishDateTime] = useState(() => {
-    if (!Number.isFinite(originalPublishAt)) return "";
-    const date = new Date(originalPublishAt);
-    return new Date(originalPublishAt - date.getTimezoneOffset() * 60_000)
-      .toISOString()
-      .slice(0, 16);
-  });
   const [step, setStep] = useState(editStep);
   const [testCases, setTestCases] = useState<TestCase[]>(original?.testCases ?? []);
   const [nextCaseId, setNextCaseId] = useState(
@@ -148,6 +156,110 @@ function ProblemEditorForm({
   const [showDrafts, setShowDrafts] = useState(false);
   const drafts = showDrafts ? readProfessorDrafts(courseId) : [];
   const [showErrors, setShowErrors] = useState(false);
+  const registering = !editingAssignment && !problemKey;
+  const canSaveDemoPolicy = import.meta.env.DEV && !import.meta.env.VITE_API_BASE_URL?.trim();
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [targetCourse, setTargetCourse] = useState(() => {
+    if (!linkedCourseId) return "";
+    return [...DEMO_COURSE_IDS]
+      .find(([, id]) => id === linkedCourseId)?.[0].toString() ?? linkedCourseId;
+  });
+  const [targetAssignment, setTargetAssignment] = useState(assignmentId ?? "");
+  const [assignments, setAssignments] = useState<CourseAssignment[]>([]);
+  const [coursesError, setCoursesError] = useState("");
+  const [assignmentsError, setAssignmentsError] = useState("");
+  const [registrationError, setRegistrationError] = useState("");
+  const [pendingRegistration, setPendingRegistration] = useState<RegisterProblemBody>();
+  const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
+
+  useEffect(() => {
+    if (!registering) return;
+    const controller = new AbortController();
+    void fetchMyCourses(controller.signal)
+      .then((data) => {
+        if (!controller.signal.aborted) setCourses(data);
+      })
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted) setCoursesError(errorMessage(error));
+      });
+    return () => controller.abort();
+  }, [registering]);
+
+  useEffect(() => {
+    if (!registering || !courses.some((item) => String(item.id) === targetCourse)) return;
+    const controller = new AbortController();
+    void fetchCourseAssignments(Number(targetCourse), controller.signal)
+      .then((data) => {
+        if (!controller.signal.aborted) setAssignments(data);
+      })
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted) setAssignmentsError(errorMessage(error));
+      });
+    return () => controller.abort();
+  }, [registering, courses, targetCourse]);
+
+  const selectedAssignment = assignments.find((item) => String(item.id) === targetAssignment);
+  const prepareRegistration = () => {
+    setRegistrationError("");
+    if (!selectedAssignment) {
+      setRegistrationError("문제를 등록할 과제를 선택해주세요.");
+      setStep(0);
+      return;
+    }
+    const body: RegisterProblemBody = {
+      title: title.trim(),
+      description,
+      inputFormat,
+      outputFormat,
+      timeLimitMs: Math.round(Number(timeLimit) * 1000),
+      memoryLimitMb: Number(memoryLimit),
+      resubmitAllowed: resubmission,
+      testcases: testCases.map(({ input, expectedOutput, visibility }) => ({
+        input,
+        expectedOutput,
+        isPublic: visibility === "public",
+      })),
+    };
+    const [error] = validateProblemRegistration(body);
+    if (error) {
+      setRegistrationError(error.reason);
+      setStep(error.field.startsWith("testcases") ? 1 : 0);
+      return;
+    }
+    setPendingRegistration(body);
+  };
+
+  const submitRegistration = async () => {
+    if (!selectedAssignment || !pendingRegistration || submittingRef.current) return;
+    submittingRef.current = true;
+    setSubmitting(true);
+    try {
+      const problem = await registerProfessorProblem(
+        selectedAssignment.id,
+        pendingRegistration,
+        canSaveDemoPolicy ? inspectionPolicy : undefined,
+      );
+      setPendingRegistration(undefined);
+      toast("success", "문제를 등록했어요.");
+      const classId = canSaveDemoPolicy
+        ? (DEMO_COURSE_IDS.get(Number(targetCourse)) ?? targetCourse)
+        : targetCourse;
+      const params = new URLSearchParams({
+        course: classId,
+        assignmentId: String(problem.assignmentId),
+        problem: String(problem.id),
+      });
+      navigate(`${ROUTES.professorClasses}?${params}`, { replace: true });
+    } catch (error) {
+      const details = error instanceof ApiError ? error.errors?.map((item) => item.reason) : [];
+      setRegistrationError(details?.length ? details.join(" ") : errorMessage(error));
+      setPendingRegistration(undefined);
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
+    }
+  };
   const titleError = showErrors && !title.trim() ? "과제 제목을 입력해주세요" : undefined;
   const descriptionError =
     showErrors && !description.trim() ? "과제 설명을 입력해주세요" : undefined;
@@ -176,7 +288,7 @@ function ProblemEditorForm({
     if (step === 0 && !validateProblem()) return;
     setStep(step + 1);
   };
-  const save = (publish: boolean) => {
+  const saveLocal = () => {
     if (saved) return;
     if (linkedCourseId && !course) {
       toast("error", "등록할 수업을 찾지 못했어요.");
@@ -186,30 +298,6 @@ function ProblemEditorForm({
       if (step !== 0) setStep(0);
       return;
     }
-    const updatePublication = editingAssignment || publish;
-    const scheduled = updatePublication && !publishImmediately;
-    const publicationTime = Date.parse(publishDateTime);
-    const samePublicationTime =
-      editingAssignment &&
-      Math.floor(originalPublishAt / 60_000) === Math.floor(publicationTime / 60_000);
-    if (
-      scheduled &&
-      (!Number.isFinite(publicationTime) || (!samePublicationTime && publicationTime <= Date.now()))
-    ) {
-      toast("error", "공개 날짜와 시간을 현재 시각 이후로 설정해주세요.");
-      if (step !== 2) setStep(2);
-      return;
-    }
-    const status = scheduled ? "SCHEDULED" : updatePublication ? "PUBLISHED" : "DRAFT";
-    const publishAt = !updatePublication
-      ? !publishImmediately && Number.isFinite(publicationTime)
-        ? new Date(publicationTime).toISOString()
-        : undefined
-      : scheduled
-        ? samePublicationTime
-          ? original?.publishAt
-          : new Date(publicationTime).toISOString()
-        : undefined;
     try {
       saveProblem(
         {
@@ -221,13 +309,13 @@ function ProblemEditorForm({
           outputFormat,
           timeLimit,
           memoryLimit,
-          deadline,
+          deadline: original?.deadline ?? "",
           resubmission,
           trackLeave,
           testCases,
           inspectionPolicy,
-          status,
-          publishAt,
+          status: original?.status ?? "DRAFT",
+          publishAt: original?.publishAt,
         },
         entry?.index,
       );
@@ -238,13 +326,7 @@ function ProblemEditorForm({
     setSaved(true);
     toast(
       "success",
-      editingAssignment
-        ? "변경사항을 저장했어요."
-        : scheduled
-          ? "문제 공개를 예약했어요."
-          : publish
-            ? "문제를 공개했어요."
-            : "문제를 초안으로 저장했어요.",
+      editingAssignment ? "변경사항을 저장했어요." : "문제를 초안으로 저장했어요.",
     );
     window.setTimeout(() => navigate(returnPath), 900);
   };
@@ -307,7 +389,7 @@ function ProblemEditorForm({
                 <Button variant="secondary" disabled={saved} onClick={() => setShowDrafts(true)}>
                   초안 불러오기
                 </Button>
-                <Button variant="secondary" disabled={saved} onClick={() => save(false)}>
+                <Button variant="secondary" disabled={saved} onClick={saveLocal}>
                   초안 저장
                 </Button>
               </>
@@ -316,10 +398,12 @@ function ProblemEditorForm({
         }
       />
 
+      {registrationError && <ErrorMessage>{registrationError}</ErrorMessage>}
+
       <ProgressStepper
         steps={STEPS}
         current={step}
-        label={editingAssignment ? "과제 수정 단계" : "과제 등록 단계"}
+        label={editingAssignment ? "문제 수정 단계" : "문제 등록 단계"}
         onChange={setStep}
         disabled={saved}
       />
@@ -328,15 +412,49 @@ function ProblemEditorForm({
         <>
           <Card title="기본 정보">
             <div className="grid gap-5">
+              {registering && (
+                <div className="grid gap-5 min-[1000px]:grid-cols-2">
+                  <Select
+                    label="수업"
+                    value={targetCourse}
+                    options={[
+                      { value: "", label: "수업을 선택해주세요" },
+                      ...courses.map((item) => ({ value: String(item.id), label: item.name })),
+                    ]}
+                    error={coursesError || undefined}
+                    onChange={(value) => {
+                      setTargetCourse(value);
+                      setTargetAssignment("");
+                      setAssignments([]);
+                      setAssignmentsError("");
+                    }}
+                  />
+                  <Select
+                    label="과제"
+                    value={targetAssignment}
+                    options={[
+                      { value: "", label: "과제를 선택해주세요" },
+                      ...assignments.map((item) => ({ value: String(item.id), label: item.title })),
+                    ]}
+                    error={assignmentsError || undefined}
+                    help={
+                      selectedAssignment
+                        ? `과제 마감일 ${formatAssignmentDeadline(selectedAssignment.dueAt, Date.now())}`
+                        : "선택한 과제에 문제를 등록합니다."
+                    }
+                    onChange={setTargetAssignment}
+                  />
+                </div>
+              )}
               <FormField
-                label="과제 제목"
+                label={registering ? "문제 제목" : "과제 제목"}
                 placeholder="문제 제목을 입력하세요"
                 value={title}
                 error={titleError}
                 onChange={(e) => setTitle(e.target.value)}
               />
               <FormField
-                label="과제 설명"
+                label={registering ? "문제 설명" : "과제 설명"}
                 multiline
                 placeholder="문제의 설명을 입력하세요."
                 value={description}
@@ -378,18 +496,20 @@ function ProblemEditorForm({
                 <FormField
                   label="시간 제한 (초)"
                   type="number"
-                  min="1"
+                  min={registering ? "0.1" : "1"}
+                  max={registering ? "10" : undefined}
+                  step={registering ? "0.001" : undefined}
                   value={timeLimit}
                   onChange={(e) => setTimeLimit(e.target.value)}
                 />
                 <FormField
                   label="메모리 제한 (MB)"
                   type="number"
-                  min="16"
+                  min={registering ? "32" : "16"}
+                  max={registering ? "512" : undefined}
                   value={memoryLimit}
                   onChange={(e) => setMemoryLimit(e.target.value)}
                 />
-                <DateTimePicker label="제출 마감" value={deadline} onChange={setDeadline} />
               </div>
             </div>
           </Card>
@@ -475,7 +595,23 @@ function ProblemEditorForm({
         </Card>
       )}
 
-      {step === 2 && (
+      {step === 2 && registering && (
+        <>
+          {canSaveDemoPolicy && (
+            <InspectionPolicyEditor
+              policy={inspectionPolicy}
+              onChange={setInspectionPolicy}
+              disabled={submitting}
+            />
+          )}
+          <Card title="제출 정책">
+            <PolicyRow title="재제출 허용" description="마감 전까지 여러 번 제출 가능">
+              <Toggle checked={resubmission} onChange={setResubmission} label="허용" />
+            </PolicyRow>
+          </Card>
+        </>
+      )}
+      {step === 2 && !registering && (
         <>
           <InspectionPolicyEditor
             policy={inspectionPolicy}
@@ -483,25 +619,6 @@ function ProblemEditorForm({
             disabled={saved}
           />
           <Card title="제출 정책">
-            <PolicyRow
-              title="문제 공개 시점"
-              description="바로 공개하거나 공개 일시를 예약할 수 있어요."
-            >
-              <Toggle
-                checked={publishImmediately}
-                onChange={setPublishImmediately}
-                label="바로 공개"
-              />
-            </PolicyRow>
-            {!publishImmediately && (
-              <div className="max-w-[420px] border-b border-border pb-5">
-                <DateTimePicker
-                  label="공개 날짜 및 시간"
-                  value={publishDateTime}
-                  onChange={setPublishDateTime}
-                />
-              </div>
-            )}
             <PolicyRow title="재제출 허용" description="마감 전까지 여러 번 제출 가능">
               <Toggle checked={resubmission} onChange={setResubmission} label="허용" />
             </PolicyRow>
@@ -536,17 +653,29 @@ function ProblemEditorForm({
           </Button>
         )}
         {editingAssignment ? (
-          <Button disabled={saved} onClick={() => save(false)}>
+          <Button disabled={saved} onClick={saveLocal}>
             변경사항 저장
           </Button>
         ) : (
           step === STEPS.length - 1 && (
-            <Button disabled={saved} onClick={() => save(true)}>
+            <Button disabled={saved} onClick={prepareRegistration}>
               문제 등록
             </Button>
           )
         )}
       </div>
+      <ConfirmModal
+        open={Boolean(pendingRegistration)}
+        role="dialog"
+        title="문제를 등록할까요?"
+        description="문제는 선택한 과제에 추가되며 과제의 공개 일정과 마감을 따릅니다."
+        confirmLabel="문제 등록"
+        loading={submitting}
+        onConfirm={() => void submitRegistration()}
+        onCancel={() => {
+          if (!submittingRef.current) setPendingRegistration(undefined);
+        }}
+      />
       <Modal open={showDrafts} onClose={() => setShowDrafts(false)} title="초안 불러오기">
         {drafts.length ? (
           <ul className="m-0 grid list-none gap-2 p-0">

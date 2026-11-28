@@ -1,6 +1,7 @@
 import { ASSIGNMENT_STATUS_LABEL } from "./professorAssignments";
 import { ROUTES } from "../../routes";
-import { useState } from "react";
+import { ApiError, errorMessage } from "../../api/client";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Code2, Flag, Plus } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -12,7 +13,9 @@ import {
   ClassCodeBox,
   ConfirmModal,
   DataTable,
+  DateTimePicker,
   EmptyState,
+  ErrorMessage,
   FormField,
   Modal,
   PageHeader,
@@ -25,7 +28,9 @@ import {
 import { ClassAssignmentDetails } from "./ClassAssignmentDetails";
 import {
   ASSIGNMENT_SORT_OPTIONS,
+  formatAssignmentDeadline,
   getAssignmentStatus,
+  mergeCourseAssignments,
   readProfessorAssignments,
   sortAssignments,
   useAssignmentClock,
@@ -36,18 +41,24 @@ import {
   getMockClassStudent,
   readProfessorClasses,
   saveProfessorClasses,
+  toProfessorClass,
+  toProfessorClasses,
   type ClassInfo,
 } from "./professorClassData";
+import { COURSE_SEMESTER_PATTERN, createProfessorCourse, fetchMyCourses } from "./professorCoursesApi";
+import { DEMO_COURSE_IDS } from "../../mocks/professor";
+import {
+  createProfessorAssignment,
+  fetchCourseAssignments,
+  type CourseAssignment,
+} from "./professorCourseAssignmentsApi";
 
-const TERMS = [
-  { value: "2026년 2학기", label: "2026년 2학기" },
-  { value: "2026년 겨울학기", label: "2026년 겨울학기" },
-];
 const STATUS_TONE = {
   PUBLISHED: "success",
   SCHEDULED: "info",
   CLOSED: "neutral",
 } as const satisfies Record<AssignmentState, "success" | "info" | "neutral">;
+const useCourseApi = import.meta.env.DEV || Boolean(import.meta.env.VITE_API_BASE_URL?.trim());
 
 const randomPart = (length: number) =>
   Math.random()
@@ -59,7 +70,33 @@ export function ProfessorClasses() {
   const navigate = useNavigate();
   const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [classes, setClasses] = useState(readProfessorClasses);
+  const [classes, setClasses] = useState<ClassInfo[]>(() =>
+    useCourseApi ? [] : readProfessorClasses(),
+  );
+  const [loadState, setLoadState] = useState<
+    { status: "loading" | "ready" } | { status: "error"; message: string }
+  >({ status: useCourseApi ? "loading" : "ready" });
+  const [loadAttempt, setLoadAttempt] = useState(0);
+
+  useEffect(() => {
+    if (!useCourseApi) return;
+
+    const controller = new AbortController();
+    void fetchMyCourses(controller.signal)
+      .then((courses) => {
+        if (controller.signal.aborted) return;
+        setClasses(toProfessorClasses(courses));
+        setLoadState({ status: "ready" });
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setLoadState({
+          status: "error",
+          message: errorMessage(error, "수업 목록을 불러오지 못했어요."),
+        });
+      });
+    return () => controller.abort();
+  }, [loadAttempt]);
   const courseId = searchParams.get("course");
   const legacyIndex = Number(searchParams.get("class") ?? -1);
   const selected = courseId ? classes.findIndex((course) => course.id === courseId) : legacyIndex;
@@ -69,15 +106,99 @@ export function ProfessorClasses() {
   const [showNew, setShowNew] = useState(false);
   const [showReissue, setShowReissue] = useState(false);
   const [newName, setNewName] = useState("");
-  const [newNameError, setNewNameError] = useState("");
-  const [newTerm, setNewTerm] = useState(TERMS[0].value);
+  const [newTerm, setNewTerm] = useState("");
+  const [courseErrors, setCourseErrors] = useState<{ name?: string; semester?: string; form?: string }>({});
+  const [creatingCourse, setCreatingCourse] = useState(false);
+  const creatingCourseRef = useRef(false);
   const current = classes[selected];
   const [allAssignments] = useState(readProfessorAssignments);
-  const now = useAssignmentClock(allAssignments);
-  const assignments = allAssignments
-    .filter((item) => item.classId === current?.id)
-    .map((item) => ({ ...item, status: getAssignmentStatus(item, now) }));
+  const numericCourseId = useCourseApi && current
+    ? (/^\d+$/.test(current.id)
+      ? Number(current.id)
+      : [...DEMO_COURSE_IDS].find(([, demoId]) => demoId === current.id)?.[0])
+    : undefined;
+  const [assignmentAttempt, setAssignmentAttempt] = useState(0);
+  const [showAssignmentCreation, setShowAssignmentCreation] = useState(false);
+  const [assignmentTitle, setAssignmentTitle] = useState("");
+  const [assignmentDueAt, setAssignmentDueAt] = useState("");
+  const [assignmentCreationError, setAssignmentCreationError] = useState("");
+  const [creatingAssignment, setCreatingAssignment] = useState(false);
+  const [assignmentResult, setAssignmentResult] = useState<
+    | { courseId: number; attempt: number; data: CourseAssignment[] }
+    | { courseId: number; attempt: number; error: string }
+  >();
+
+  useEffect(() => {
+    if (numericCourseId === undefined) return;
+
+    const controller = new AbortController();
+    const request = { courseId: numericCourseId, attempt: assignmentAttempt };
+    void fetchCourseAssignments(numericCourseId, controller.signal)
+      .then((data) => {
+        if (!controller.signal.aborted) setAssignmentResult({ ...request, data });
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setAssignmentResult({
+          ...request,
+          error: errorMessage(error, "과제 목록을 불러오지 못했어요."),
+        });
+      });
+    return () => controller.abort();
+  }, [numericCourseId, assignmentAttempt]);
+
+  const result =
+    assignmentResult?.courseId === numericCourseId &&
+    assignmentResult?.attempt === assignmentAttempt
+      ? assignmentResult
+      : undefined;
+  const assignmentsLoading = numericCourseId !== undefined && !result;
+  const assignmentsError = result && "error" in result ? result.error : undefined;
+  const apiAssignments = result && "data" in result ? result.data : [];
+  const courseAssignments =
+    numericCourseId === undefined
+      ? allAssignments.filter((item) => item.classId === current?.id)
+      : current && result && "data" in result
+        ? mergeCourseAssignments(current.id, result.data, allAssignments)
+        : [];
+  const now = useAssignmentClock(courseAssignments);
+  const assignments = courseAssignments.map((item) => ({
+    ...item,
+    status: getAssignmentStatus(item, now),
+  }));
   const assignmentKey = searchParams.get("assignment");
+  const detailAssignmentId = searchParams.get("assignmentId");
+  const requestedProblemId = searchParams.get("problem");
+  const detailAssignment = assignments.find((item) =>
+    detailAssignmentId
+      ? String(item.id) === detailAssignmentId
+      : assignmentKey && item.editKey === assignmentKey,
+  );
+
+  const createAssignment = async () => {
+    if (numericCourseId === undefined || creatingAssignment) return;
+    const dueAt = Date.parse(assignmentDueAt);
+    if (!assignmentTitle.trim() || !(dueAt > Date.now())) {
+      setAssignmentCreationError("과제명을 입력하고 마감 시각을 현재 시각 이후로 설정해주세요.");
+      return;
+    }
+    setCreatingAssignment(true);
+    try {
+      const assignment = await createProfessorAssignment(numericCourseId, {
+        title: assignmentTitle.trim(),
+        dueAt: new Date(dueAt).toISOString(),
+      });
+      setShowAssignmentCreation(false);
+      setAssignmentAttempt((attempt) => attempt + 1);
+      if (current) setSearchParams({ course: current.id, assignmentId: String(assignment.id) });
+      toast("success", "과제를 만들었어요.");
+    } catch (error) {
+      const reasons = error instanceof ApiError ? error.errors?.map(({ reason }) => reason) : [];
+      setAssignmentCreationError(reasons?.length ? reasons.join(" ") : errorMessage(error));
+    } finally {
+      setCreatingAssignment(false);
+    }
+  };
 
   const updateClasses = (nextClasses: ClassInfo[]) => {
     try {
@@ -105,26 +226,39 @@ export function ProfessorClasses() {
   const closeNew = () => {
     setShowNew(false);
     setNewName("");
-    setNewNameError("");
-    setNewTerm(TERMS[0].value);
+    setCourseErrors({});
+    setNewTerm("");
   };
-  const createClass = () => {
-    const title = newName.trim();
-    if (!title) {
-      setNewNameError("수업명을 입력해주세요");
+  const createClass = async () => {
+    if (creatingCourseRef.current) return;
+    const name = newName.trim();
+    const semester = newTerm.trim();
+    const nameError = name.length < 1 || name.length > 50 ? "수업명은 1~50자로 입력해주세요." : undefined;
+    const semesterError = COURSE_SEMESTER_PATTERN.test(semester)
+      ? undefined
+      : "학기를 YYYY-N 형식으로 입력해주세요.";
+    if (nameError || semesterError) {
+      setCourseErrors({ name: nameError, semester: semesterError });
       return;
     }
-    const next: ClassInfo = {
-      id: `local-${classes.length}`,
-      title,
-      term: newTerm,
-      count: 0,
-      code: `CL-${randomPart(4)}-${randomPart(2)}`,
-      open: true,
-    };
-    if (!updateClasses([...classes, next])) return;
-    closeNew();
-    toast("success", "새 수업을 만들었어요.");
+    setCourseErrors({});
+    creatingCourseRef.current = true;
+    setCreatingCourse(true);
+    try {
+      const course = toProfessorClass(await createProfessorCourse({ name, semester }), []);
+      setClasses((previous) => [...previous.filter((item) => item.id !== course.id), course]);
+      closeNew();
+      setSearchParams({ course: course.id });
+      toast("success", "새 수업을 만들었어요.");
+    } catch (error) {
+      const fields = error instanceof ApiError ? error.errors : null;
+      const name = fields?.find((field) => field.field === "name")?.reason;
+      const semester = fields?.find((field) => field.field === "semester")?.reason;
+      setCourseErrors({ name, semester, form: name || semester ? undefined : errorMessage(error) });
+    } finally {
+      creatingCourseRef.current = false;
+      setCreatingCourse(false);
+    }
   };
   const keyword = query.trim().toLowerCase();
   const filteredClasses = classes.filter(
@@ -148,9 +282,28 @@ export function ProfessorClasses() {
 
   return (
     <ProfessorLayout onSearch={setQuery} searchPlaceholder="수업 이름 또는 코드 검색">
-      {current && assignmentKey ? (
+      {current && (assignmentKey || detailAssignmentId) && !assignmentsLoading && !assignmentsError ? (
         <ClassAssignmentDetails
-          assignment={assignments.find((item) => item.editKey === assignmentKey)}
+          key={JSON.stringify([current.id, assignmentKey, detailAssignmentId, requestedProblemId])}
+          assignment={detailAssignment}
+          initialProblemId={requestedProblemId ? Number(requestedProblemId) : undefined}
+          problems={apiAssignments.find((item) => item.id === detailAssignment?.id)?.problems}
+          reviewPath={
+            detailAssignment?.editKey && detailAssignment.status === "PUBLISHED"
+              ? `${ROUTES.professorReview}?${new URLSearchParams({
+                  course: current.id,
+                  assignment: detailAssignment.editKey,
+                })}`
+              : undefined
+          }
+          problemRegistrationPath={
+            detailAssignment && apiAssignments.some((item) => item.id === detailAssignment.id)
+              ? `${ROUTES.professorProblemNew}?${new URLSearchParams({
+                  course: current.id,
+                  assignmentId: String(detailAssignment.id),
+                })}`
+              : undefined
+          }
           listPath={`${ROUTES.professorClasses}?course=${encodeURIComponent(current.id)}`}
         />
       ) : (
@@ -176,6 +329,7 @@ export function ProfessorClasses() {
               ) : (
                 <Button
                   icon={<Plus size={24} strokeWidth={1.75} />}
+                  disabled={!useCourseApi || loadState.status !== "ready"}
                   onClick={() => setShowNew(true)}
                 >
                   새 수업 만들기
@@ -184,7 +338,28 @@ export function ProfessorClasses() {
             }
           />
 
-          {!current ? (
+          {loadState.status === "loading" ? (
+            <Card>
+              <p role="status" className="text-sm text-fg-secondary">
+                수업 목록을 불러오는 중이에요.
+              </p>
+            </Card>
+          ) : loadState.status === "error" ? (
+            <Card>
+              <div className="flex flex-col items-start gap-3">
+                <ErrorMessage>{loadState.message}</ErrorMessage>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setLoadState({ status: "loading" });
+                    setLoadAttempt((attempt) => attempt + 1);
+                  }}
+                >
+                  다시 시도
+                </Button>
+              </div>
+            </Card>
+          ) : !current ? (
             <Card
               padding="table"
               title="내 수업"
@@ -199,8 +374,10 @@ export function ProfessorClasses() {
                 onRowClick={(item) => setSearchParams({ course: item.id })}
                 empty={
                   <EmptyState
-                    title="검색 결과가 없어요"
-                    description="다른 수업 이름이나 코드로 검색해 보세요."
+                    title={keyword ? "검색 결과가 없어요" : "등록된 수업이 없어요"}
+                    description={
+                      keyword ? "다른 수업 이름이나 코드로 검색해 보세요." : undefined
+                    }
                   />
                 }
                 columns={[
@@ -287,7 +464,11 @@ export function ProfessorClasses() {
                 active={detailTab}
                 onChange={(tab) => setSearchParams({ course: current.id, tab }, { replace: true })}
                 items={[
-                  { value: "assignments", label: "과제", count: assignments.length },
+                  {
+                    value: "assignments",
+                    label: "과제",
+                    count: assignmentsLoading || assignmentsError ? undefined : assignments.length,
+                  },
                   { value: "students", label: "수강생", count: current.count },
                 ]}
               />
@@ -311,61 +492,93 @@ export function ProfessorClasses() {
                     <Button
                       size="sm"
                       icon={<Plus size={24} strokeWidth={1.75} />}
-                      onClick={() =>
-                        navigate(
-                          `${ROUTES.professorProblemNew}?course=${encodeURIComponent(current.id)}`,
-                        )
-                      }
+                      disabled={numericCourseId === undefined}
+                      onClick={() => {
+                        setAssignmentTitle("");
+                        setAssignmentDueAt("");
+                        setAssignmentCreationError("");
+                        setShowAssignmentCreation(true);
+                      }}
                     >
                       과제 등록
                     </Button>
                   }
                 >
-                  <DataTable
-                    horizontalScroll
-                    keyboardNavigation
-                    rows={assignmentPager.items}
-                    rowKey={(item) => item.id}
-                    empty={
-                      <EmptyState
-                        title="등록된 과제가 없어요"
-                        description="과제 등록 버튼으로 첫 과제를 만들어 보세요."
-                      />
-                    }
-                    onRowClick={(assignment) => {
-                      if (!assignment.editKey) return;
-                      const params = { course: current.id, assignment: assignment.editKey };
-                      if (assignment.status === "PUBLISHED")
-                        navigate(`${ROUTES.professorReview}?${new URLSearchParams(params)}`);
-                      else setSearchParams(params);
-                    }}
-                    columns={[
-                      {
-                        key: "title",
-                        header: "과제",
-                        render: (item) => <strong className="text-fg">{item.title}</strong>,
-                      },
-                      { key: "due", header: "마감" },
-                      {
-                        key: "submitted",
-                        header: "제출 수",
-                        render: (item) => (
-                          <>
-                            {item.submitted} / {item.total}
-                          </>
-                        ),
-                      },
-                      {
-                        key: "status",
-                        header: "상태",
-                        render: (item) => (
-                          <Badge tone={STATUS_TONE[item.status]}>
-                            {ASSIGNMENT_STATUS_LABEL[item.status]}
-                          </Badge>
-                        ),
-                      },
-                    ]}
-                  />
+                  {assignmentsLoading ? (
+                    <p role="status" className="px-5 py-4 text-sm text-fg-secondary">
+                      과제 목록을 불러오는 중이에요.
+                    </p>
+                  ) : assignmentsError ? (
+                    <div className="flex flex-col items-start gap-3 px-5 py-4">
+                      <ErrorMessage>{assignmentsError}</ErrorMessage>
+                      <Button
+                        variant="secondary"
+                        onClick={() => setAssignmentAttempt((attempt) => attempt + 1)}
+                      >
+                        다시 시도
+                      </Button>
+                    </div>
+                  ) : (
+                    <DataTable
+                      horizontalScroll
+                      keyboardNavigation
+                      rows={assignmentPager.items}
+                      rowKey={(item) => item.id}
+                      empty={
+                        <EmptyState
+                          title="등록된 과제가 없어요"
+                          description="과제 등록 버튼으로 첫 과제를 만들어 보세요."
+                        />
+                      }
+                      onRowClick={(assignment) => {
+                          if (apiAssignments.some((item) => item.id === assignment.id)) {
+                            setSearchParams({ course: current.id, assignmentId: String(assignment.id) });
+                            return;
+                          }
+                          if (!assignment.editKey) return;
+                        const params = { course: current.id, assignment: assignment.editKey };
+                        if (assignment.status === "PUBLISHED")
+                          navigate(`${ROUTES.professorReview}?${new URLSearchParams(params)}`);
+                        else setSearchParams(params);
+                      }}
+                      columns={[
+                        {
+                          key: "title",
+                          header: "과제",
+                          render: (item) => <strong className="text-fg">{item.title}</strong>,
+                        },
+                        {
+                          key: "deadline",
+                          header: "마감",
+                          render: (item) => formatAssignmentDeadline(item.deadline, now),
+                        },
+                        {
+                          key: "submitted",
+                          header: "제출 수",
+                          render: (item) => {
+                            const api = apiAssignments.find((record) => record.id === item.id);
+                            if (!api) return `${item.submitted} / ${item.total}`;
+                            if (!api.problems.length) return "집계 없음";
+                            return api.problems.map((problem) => (
+                              <div key={problem.id}>
+                                {api.problems.length > 1 && <span>{problem.title} · </span>}
+                                {problem.submittedStudentCount ?? "–"} / {api.studentCount ?? "–"}
+                              </div>
+                            ));
+                          },
+                        },
+                        {
+                          key: "status",
+                          header: "상태",
+                          render: (item) => (
+                            <Badge tone={STATUS_TONE[item.status]}>
+                              {ASSIGNMENT_STATUS_LABEL[item.status]}
+                            </Badge>
+                          ),
+                        },
+                      ]}
+                    />
+                  )}
                   {assignmentPager.show && (
                     <Pagination
                       page={assignmentPager.page}
@@ -421,15 +634,19 @@ export function ProfessorClasses() {
 
       <Modal
         open={showNew}
-        onClose={closeNew}
+        onClose={() => {
+          if (!creatingCourseRef.current) closeNew();
+        }}
         title="새 수업 만들기"
         description="수업 기본 정보를 입력하세요."
         footer={
           <>
-            <Button variant="secondary" onClick={closeNew}>
+            <Button variant="secondary" disabled={creatingCourse} onClick={closeNew}>
               취소
             </Button>
-            <Button onClick={createClass}>수업 만들기</Button>
+            <Button loading={creatingCourse} onClick={() => void createClass()}>
+              수업 만들기
+            </Button>
           </>
         }
       >
@@ -437,7 +654,7 @@ export function ProfessorClasses() {
           className="grid gap-5"
           onSubmit={(e) => {
             e.preventDefault();
-            createClass();
+            void createClass();
           }}
         >
           <FormField
@@ -445,13 +662,25 @@ export function ProfessorClasses() {
             placeholder="예: 자료구조"
             autoFocus
             value={newName}
-            error={newNameError}
+            error={courseErrors.name}
+            disabled={creatingCourse}
             onChange={(e) => {
               setNewName(e.target.value);
-              setNewNameError("");
+              setCourseErrors((errors) => ({ ...errors, name: undefined, form: undefined }));
             }}
           />
-          <Select label="학기" value={newTerm} onChange={setNewTerm} options={TERMS} />
+          <FormField
+            label="학기"
+            placeholder="예: 2026-2"
+            value={newTerm}
+            error={courseErrors.semester}
+            disabled={creatingCourse}
+            onChange={(e) => {
+              setNewTerm(e.target.value);
+              setCourseErrors((errors) => ({ ...errors, semester: undefined, form: undefined }));
+            }}
+          />
+          {courseErrors.form && <ErrorMessage>{courseErrors.form}</ErrorMessage>}
         </form>
       </Modal>
       <ConfirmModal
@@ -465,6 +694,24 @@ export function ProfessorClasses() {
         onCancel={() => setShowReissue(false)}
         onConfirm={reissue}
       />
+      <Modal
+        open={showAssignmentCreation}
+        title="과제 등록"
+        onClose={() => {
+          if (!creatingAssignment) setShowAssignmentCreation(false);
+        }}
+        footer={
+          <Button loading={creatingAssignment} onClick={() => void createAssignment()}>
+            과제 만들기
+          </Button>
+        }
+      >
+        <div className="grid gap-4">
+          <FormField label="과제명" value={assignmentTitle} onChange={(e) => setAssignmentTitle(e.target.value)} />
+          <DateTimePicker label="마감 시각" value={assignmentDueAt} onChange={setAssignmentDueAt} />
+          {assignmentCreationError && <ErrorMessage>{assignmentCreationError}</ErrorMessage>}
+        </div>
+      </Modal>
     </ProfessorLayout>
   );
 }

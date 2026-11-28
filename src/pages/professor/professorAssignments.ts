@@ -3,6 +3,7 @@ import { ASSIGNMENTS, PROBLEM_DETAILS } from "../../mocks/professor";
 import { REVIEWS } from "../../mocks/professor";
 import { readProfessorClasses } from "./professorClassData";
 import type { Assignment } from "../../mocks/professor";
+import type { CourseAssignment } from "./professorCourseAssignmentsApi";
 import { readSavedProblems, type SavedProblem } from "./savedProblems";
 
 export type { Assignment };
@@ -144,6 +145,51 @@ function readAllProfessorAssignments(): Assignment[] {
 
 export function readProfessorAssignments() {
   return readAllProfessorAssignments().filter((item) => item.status !== "DRAFT");
+}
+
+export function mergeCourseAssignments(
+  courseId: string,
+  response: CourseAssignment[],
+  localAssignments: Assignment[],
+) {
+  let editedIds = new Set<number>();
+  const isDemoCourse = !import.meta.env.VITE_API_BASE_URL?.trim();
+  try {
+    if (isDemoCourse) {
+      editedIds = new Set(readSavedProblems().flatMap((item) => item.sampleId ?? []));
+    }
+  } catch {
+    // The API list is still usable when local demo edits cannot be read.
+  }
+  const rows = response.flatMap((record) => {
+    const editKey = `sample-${record.id}`;
+    const local = isDemoCourse
+      ? localAssignments.find((item) => item.editKey === editKey)
+      : undefined;
+    const edited = editedIds.has(record.id);
+    if (edited && local?.classId !== courseId) return [];
+
+    const assignment: Assignment = {
+      id: record.id,
+      classId: courseId,
+      editKey: local?.editKey,
+      title: edited ? (local?.title ?? record.title) : record.title,
+      deadline: edited ? (local?.deadline ?? record.dueAt) : record.dueAt,
+      status: local?.status ?? "PUBLISHED",
+      publishAt: local?.publishAt,
+      submitted: record.problems[0]?.submittedStudentCount ?? 0,
+      total: record.studentCount ?? 0,
+      flags: local?.flags ?? 0,
+    };
+    return [assignment];
+  });
+  const localOnly = localAssignments.filter(
+    (item) =>
+      item.classId === courseId &&
+      !rows.some((row) => row.editKey === item.editKey) &&
+      (item.editKey?.startsWith("saved-") || editedIds.has(item.id)),
+  );
+  return [...rows, ...localOnly];
 }
 
 export function readProfessorDrafts(courseId: string | null) {
