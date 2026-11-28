@@ -2,7 +2,6 @@ import { useState, type ReactNode } from "react";
 import { Server, Users } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Modal, NotificationPanel, Sidebar, SidebarHelpCard, Topbar } from "../../components";
-import { FAILURES } from "../../mocks/admin";
 import { ROUTES } from "../../routes";
 
 const ICON = { size: 24, strokeWidth: 1.75 };
@@ -22,7 +21,7 @@ export function AdminLayout({
   children,
   searchPlaceholder,
   onSearch,
-  failureCount = FAILURES.length,
+  failureCount,
   onShowHistory,
 }: AdminLayoutProps) {
   const navigate = useNavigate();
@@ -54,7 +53,7 @@ export function AdminLayout({
           <Topbar
             responsive
             user={{ name: "시스템 관리자", sub: "super admin" }}
-            hasUnread={unread}
+            hasUnread={unread && (failureCount ?? 0) > 0}
             searchPlaceholder={searchPlaceholder}
             onSearch={onSearch}
             bellOpen={bellOpen}
@@ -63,12 +62,12 @@ export function AdminLayout({
               <NotificationPanel
                 readableTimestamp
                 title="시스템 알림"
-                items={[
+                items={failureCount === undefined || failureCount === 0 ? [] : [
                   {
                     id: 1,
                     title: "채점 실패",
                     body: `시스템 오류 ${failureCount}건이 기록되었습니다.`,
-                    time: "예시 데이터",
+                    time: "조회 기준",
                     unread,
                   },
                 ]}
@@ -93,11 +92,10 @@ export function AdminLayout({
       </div>
       <Modal open={guideOpen} title="시스템 운영 가이드" onClose={() => setGuideOpen(false)}>
         <p>
-          큐 적재량에서 시간대별 대기 작업을 확인하고, 워커 현황에서 진행 중인 제출과 최근 응답을
-          확인하세요.
+          큐별 대기 작업 수와 채점·검사 워커 소비자 수를 확인하세요.
         </p>
         <p>
-          채점 실패 이력에서는 컨테이너와 워커의 시스템 오류 및 재시도 횟수를 확인할 수 있습니다.
+          채점 실패 이력에서는 최종 실패 시각, 원인과 재시도 횟수를 확인할 수 있습니다.
         </p>
       </Modal>
     </div>

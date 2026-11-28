@@ -1,52 +1,25 @@
-export const QUEUE = [18, 24, 16, 34, 28, 42, 37, 51, 31, 26, 19, 12];
-export const VERDICTS = [
-  { label: "AC", percent: 64, color: "var(--color-success-fg)" },
-  { label: "WA", percent: 21, color: "var(--color-danger-fg)" },
-  { label: "TLE", percent: 6, color: "var(--color-flag-fg)" },
-  { label: "MLE", percent: 3, color: "var(--color-purple-fg)" },
-  { label: "RE", percent: 4, color: "var(--color-blue-600)" },
-  { label: "FLAG", percent: 2, color: "var(--color-navy-900)" },
-];
+import type { AdminStatus, JudgeFailure } from "../api/admin";
 
-export const WORKERS = [1842, 1839, 1837, null, 1832, 1828].map((submission, index) => ({
-  id: `worker-0${index + 1}`,
-  status:
-    submission === null
-      ? ("IDLE" as const)
-      : index === 2
-        ? ("GRADING" as const)
-        : ("HEALTHY" as const),
-  submission: submission === null ? "–" : `SUB-20250522-${submission}`,
-  runtime: "Docker sandbox",
-  heartbeatSeconds: index + 1,
+export const DEMO_ADMIN_STATUS: AdminStatus = {
+  queues: [
+    { name: "judge.queue", ready: 12, unacked: null },
+    { name: "lint.queue", ready: 0, unacked: null },
+    { name: "result.queue", ready: 1, unacked: null },
+  ],
+  workers: { judge: 2, lint: 1 },
+  todayJudged: 1284,
+  avgJudgeTimeMs: 3800,
+};
+
+const failureReasons = ["컨테이너 시작 실패", "워커 비정상 종료", "샌드박스 이미지 로드 실패"];
+
+export const DEMO_JUDGE_FAILURES: JudgeFailure[] = Array.from({ length: 23 }, (_, index) => ({
+  submissionId: 339 - index,
+  problemId: 12 + (index % 3),
+  failedAt: new Date(Date.UTC(2026, 10, 7, 5, 50 - index, 12)).toISOString(),
+  reason: failureReasons[index % failureReasons.length],
+  retryCount: 3,
 }));
-export const FAILURES = [
-  {
-    id: "JOB-88412",
-    submission: "SUB-1842",
-    reason: "컨테이너 시작 실패",
-    worker: "worker-07",
-    attempts: 1,
-  },
-  {
-    id: "JOB-88405",
-    submission: "SUB-1838",
-    reason: "워커 비정상 종료",
-    worker: "worker-03",
-    attempts: 2,
-  },
-  {
-    id: "JOB-88391",
-    submission: "SUB-1821",
-    reason: "샌드박스 이미지 로드 실패",
-    worker: "worker-09",
-    attempts: 0,
-  },
-];
-export const REGISTERED_WORKERS = 10;
-export const COMPLETED_SUBMISSIONS = 1284;
-export const AVERAGE_GRADING_SECONDS = 3.8;
-export const QUEUE_COUNT_FIVE_MINUTES_AGO = 15;
 
 export type AdminUserRole = "STUDENT" | "PROFESSOR" | "ADMIN";
 
